@@ -55,8 +55,11 @@
 
 int main()
 {	
-//	printf("\x1b[38;2;%d;%d;%dm XXX", 200, 200, 100);
-//	return 0;
+	//for(int i = 128; i < 256; ++i) {
+		printf("\x1b[38;2;%d;%d;%dm %d: \u2580\n", 200, 200, 100);
+		//putchar(2580);
+	//}
+	return 0;
 
     int ch;
 	initscr();
