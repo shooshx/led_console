@@ -39,6 +39,7 @@ __attribute__((constructor)) static void before_main(void)
 	keypad(stdscr, TRUE);
 	noecho();
     curs_set(0);
+    set_escdelay(0);
     timeout(0);
 #else
     printf("\x1b[?25l"); // hide cursor
@@ -180,7 +181,7 @@ void SDL_UnlockSurface(SDL_Surface * surface)
 
 			offset += sprintf(g_textbuf + offset, "\x1b[38;2;%d;%d;%dm\x1b[48;2;%d;%d;%dm\u2580", fr, fg, fb, br, bg, bb);
 		}
-		offset += sprintf(g_textbuf + offset, "\x1b[%dH", line+1);
+		offset += sprintf(g_textbuf + offset, "\x1b[%dH", line+2); // coordinates are 1 based
 	}
     offset += sprintf(g_textbuf + offset, "\x1b[0m"); // reset color
     //printf("%d: did buf %d\n", g_frame_num, offset);
@@ -370,22 +371,45 @@ void push_text_input(int c)
     newe->text.windowID = 0;
 }
 
+void push_key_down_up_textinp(int c, int s)
+{
+    push_key_down_up(c, s);
+    push_text_input(c);
+}
+
 void enq_keyboard(void)
 {
     int c = getch(); // should not be blocking due to timeout() above
     if (c == ERR)
         return;
     if (c >= 'a' && c <= 'z')
-    {
-        push_key_down_up(c, SDL_SCANCODE_A + (c - 'a'));
-        push_text_input(c);
-    }
+        push_key_down_up_textinp(c, SDL_SCANCODE_A + (c - 'a'));
     else if (c >= 'A' && c <= 'Z')
-    {
-        push_key_down_up(c, SDL_SCANCODE_A + (c - 'A'));
+        push_key_down_up_textinp(c, SDL_SCANCODE_A + (c - 'A'));
+    else if (c == '0')
+        push_key_down_up_textinp(c, SDL_SCANCODE_0);
+    else if (c >= '1' && c <= '9')
+        push_key_down_up_textinp(c, SDL_SCANCODE_1 + (c - '1'));
+    else if (c == KEY_BACKSPACE || c == '\b')
+        push_key_down_up(SDLK_BACKSPACE, SDL_SCANCODE_BACKSPACE);
+    else if (c == KEY_ENTER || c == 10)
+        push_key_down_up(SDLK_RETURN, SDL_SCANCODE_RETURN);
+    else if (c == ' ')
+        push_key_down_up_textinp(SDLK_SPACE, SDL_SCANCODE_SPACE);
+    else if (c == 0x1b)
+        push_key_down_up(SDLK_ESCAPE, SDL_SCANCODE_ESCAPE);
+    else if (c == KEY_UP)
+        push_key_down_up(SDLK_UP, SDL_SCANCODE_UP);
+    else if (c == KEY_DOWN)
+        push_key_down_up(SDLK_DOWN, SDL_SCANCODE_DOWN);
+    else if (c == KEY_LEFT)
+        push_key_down_up(SDLK_LEFT, SDL_SCANCODE_LEFT);
+    else if (c == KEY_RIGHT)
+        push_key_down_up(SDLK_RIGHT, SDL_SCANCODE_RIGHT);
+    else if (c < 256)
         push_text_input(c);
-    }
-
+    else
+        printf("NOT-HANDLED-KEY: %d(%x)\n", c, c);
 }
 
 #ifdef OVERRIDE_EVENTS
