@@ -1,5 +1,5 @@
-import sys, os, ctypes, random
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+import sys, os, ctypes, random, threading, time
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "infra"))
 import infra
 
 import game_of_life
@@ -19,17 +19,38 @@ class State:
         self.game = game_of_life.GameOfLife(BOARD_WIDTH, BOARD_HEIGHT)
 
     def copy_to_disp(self):
-        for y in range(0, self.disp.height):
-            for x in range(0, self.disp.width):
-                self.disp.set_pixel(x, y, self.game.get(x + self.offset_x, y + self.offset_y))
+        self.disp.pixels.blit_from(self.game.get_board(), self.offset_x, self.offset_y, 0, 0, self.disp.width, self.disp.height)
+
+
 
     def step(self):
         self.game.step()
         self.copy_to_disp()
 
 
+class FpsShow:
+    def __init__(self):
+        self.count = 0
+        self.last_count = 0
+        self.do_stop = False
+        self.t = threading.Thread(target=self.fps_thread)
+        self.t.start()
+
+    def inc(self):
+        self.count += 1
+    def stop(self):
+        self.do_stop = True
+    def fps_thread(self):
+        while not self.do_stop:
+            time.sleep(1)
+            c = self.count
+            print("fps:", c - self.last_count)
+            self.last_count = c
+
+
 def main(argv):
     inf = infra.infra_init("sdl")
+    fps = FpsShow()
 
     disp = inf.get_display()
 
@@ -45,9 +66,10 @@ def main(argv):
         if not inf.handle_events():
             break
         state.step()
+        fps.inc()
         disp.refresh()
 
-
+    fps.stop()
     inf.destroy()
     return 0
 

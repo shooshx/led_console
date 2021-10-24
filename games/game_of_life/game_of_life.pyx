@@ -1,30 +1,7 @@
-import ctypes, random, time
+import random, time
 
-from cpython cimport array
-import array
-from libc.string cimport memset
 
-cdef class IntMatrix:
-    cdef int w
-    cdef int h
-    cdef array.array d_mem
-    cdef int[:] d
-    def __init__(self, int w, int h):
-        self.w = w
-        self.h = h
-        self.reset()
-    cdef reset(self):
-        #self.MatType = ctypes.c_uint32 * (self.w * self.h)
-        self.d_mem = array.array('i', [0]*(self.w*self.h))
-        self.d = self.d_mem
-    cdef set(self, int x, int y, int c):
-        self.d[y * self.w + x] = c
-    cdef int get(self, int x, int y):
-        return self.d[y * self.w + x]
-    cdef mget(self, int x, int y):
-        return self.d[(y % self.h) * self.w + (x % self.w)]
-    cdef fill(self, int v):
-        memset(self.d_mem.data.as_voidptr, v, len(self.d_mem) * sizeof(int))
+from infra_callc cimport IntMatrix
 
 
 cdef int[8*2] AROUND_OFFSETS = [-1,-1, 0,-1, 1,-1,
@@ -73,10 +50,13 @@ cdef class GameOfLife:
     def step(self):
         now = time.time()
         self.step_count += 1
-        print("step:", self.step_count, now - self.last_time)
+        #print("step:", self.step_count, now - self.last_time)
         self.last_time = now
         self.process()
         self.board, self.next = self.next, self.board
 
     def get(self, x, y):
         return self.board.get(x, y)
+
+    def get_board(self):
+        return self.board
