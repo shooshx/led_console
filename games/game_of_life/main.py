@@ -9,67 +9,60 @@ BOARD_HEIGHT = 256
 BOARD_WIDTH = 256
 
 
-
-class State:
-    def __init__(self, disp):
+class State(infra.BaseHandler):
+    def __init__(self, disp, joys):
         self.offset_x = 0
         self.offset_y = 0
         self.disp = disp
+        self.joys = joys
 
         self.game = game_of_life.GameOfLife(BOARD_WIDTH, BOARD_HEIGHT)
 
     def copy_to_disp(self):
-        self.disp.pixels.blit_from(self.game.get_board(), self.offset_x, self.offset_y, 0, 0, self.disp.width, self.disp.height)
-
-
+        self.disp.pixels.mblit_from(self.game.get_board(), self.offset_x, self.offset_y, 0, 0, self.disp.width, self.disp.height)
+        self.disp.refresh()
 
     def step(self):
         self.game.step()
         self.copy_to_disp()
 
+    def update_pos(self, joy):
+        self.offset_x += joy.x
+        self.offset_y += joy.y
+        #if joy.x != 0 or joy.y != 0:
+        #    print("offsets:", self.offset_x, self.offset_y)
 
-class FpsShow:
-    def __init__(self):
-        self.count = 0
-        self.last_count = 0
-        self.do_stop = False
-        self.t = threading.Thread(target=self.fps_thread)
-        self.t.start()
-
-    def inc(self):
-        self.count += 1
-    def stop(self):
-        self.do_stop = True
-    def fps_thread(self):
-        while not self.do_stop:
-            time.sleep(1)
-            c = self.count
-            print("fps:", c - self.last_count)
-            self.last_count = c
+    def on_joy_event(self, player, event):
+        with_color = self.joys[player].btn_B
+        if event == infra.JOY_BTN_A:
+            if player == infra.PLAYER_1:
+                self.game.pattern_board("random", 0.5, with_color)
+            else:
+                self.game.pattern_board("gliders", 200, with_color)
 
 
 def main(argv):
     inf = infra.infra_init("sdl")
-    fps = FpsShow()
+    disp = inf.get_display(show_fps=True)
 
-    disp = inf.get_display()
-
-    disp.set_pixel(30, 30, 0xffffffff)
-    for i in range(0,127):
-        disp.set_pixel(i, i, 0xff00ffff)
+    disp.test_pattern()
     disp.refresh()
+    joys = inf.get_joystick_state()
 
-    state = State(disp)
-    state.game.rand_board()
+    state = State(disp, joys)
+    state.game.pattern_board('random', 0.5, False)
+    #state.game.pattern_board("glider", 0, True)
+
+    state.copy_to_disp()
 
     while True:
-        if not inf.handle_events():
+        #time.sleep(1)
+        if not inf.handle_events(state):
             break
+        state.update_pos(joys[infra.PLAYER_1])
         state.step()
-        fps.inc()
-        disp.refresh()
+        #state.copy_to_disp()
 
-    fps.stop()
     inf.destroy()
     return 0
 

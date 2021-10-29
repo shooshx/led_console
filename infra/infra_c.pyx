@@ -8,6 +8,7 @@ cdef extern from "SDL2/include/SDL_events.h":
     ctypedef unsigned int Uint32
     ctypedef int Sint32
     ctypedef unsigned short Uint16
+    ctypedef short Sint16
     ctypedef unsigned char Uint8
 
     cdef struct SDL_Keysym:
@@ -37,6 +38,22 @@ cdef extern from "SDL2/include/SDL_events.h":
         Sint32 data1
         Sint32 data2
 
+    ctypedef Sint32 SDL_JoystickID
+
+    cdef struct SDL_JoyAxisEvent:
+        Uint32 type
+        Uint32 timestamp
+        SDL_JoystickID which
+        Uint8 axis
+        Sint16 value
+
+    cdef struct SDL_JoyButtonEvent:
+        Uint32 type
+        Uint32 timestamp
+        SDL_JoystickID which
+        Uint8 button
+        Uint8 state
+
     cdef struct SDL_CommonEvent:
         Uint32 type
         Uint32 timestamp
@@ -47,6 +64,8 @@ cdef extern from "SDL2/include/SDL_events.h":
         SDL_KeyboardEvent key
         SDL_TextInputEvent text
         SDL_WindowEvent window
+        SDL_JoyAxisEvent jaxis
+        SDL_JoyButtonEvent jbutton;
 
     int SDL_PollEvent(SDL_Event* event)
 
@@ -77,6 +96,19 @@ class WindowEvent:
         self.data1 = data1
         self.data2 = data2
 
+class JoyAxisEvent:
+    def __init__(self, etype, jid, axis, value):
+        self.type = etype
+        self.jid = jid
+        self.axis = axis
+        self.value = value
+
+class JoyButtonEvent:
+    def __init__(self, etype, jid, button):
+        self.type = etype
+        self.jid = jid
+        self.button = button
+
 def call_poll_events():
     cdef int ret
     cdef SDL_Event event
@@ -84,13 +116,20 @@ def call_poll_events():
 
     while SDL_PollEvent(&event) != 0:
         if event.type == 0x100:
-            lst.append(CommonEvent(event.type))
+            e = CommonEvent(event.type)
         elif event.type == 0x200:
-            lst.append(WindowEvent(event.type, event.window.event, event.window.data1, event.window.data2))
+            e = WindowEvent(event.type, event.window.event, event.window.data1, event.window.data2)
         elif event.type == 0x300 or event.type == 0x301:
-            lst.append(KeyboardEvent(event.type, event.key.keysym.scancode, event.key.keysym.sym))
+            e = KeyboardEvent(event.type, event.key.keysym.scancode, event.key.keysym.sym)
         elif event.type == 0x303:
-            lst.append(TextInputEvent(event.type, event.text.text))
+            e = TextInputEvent(event.type, event.text.text)
+        elif event.type == 0x600: # SDL_JOYAXISMOTION
+            e = JoyAxisEvent(event.type, event.jaxis.which, event.jaxis.axis, event.jaxis.value)
+        elif event.type == 0x603 or event.type == 0x604:  # SDL_JOYBUTTONDOWN, SDL_JOYBUTTONUP
+            e = JoyButtonEvent(event.type, event.jbutton.which, event.jbutton.button)
+        else:
+            e = CommonEvent(event.type)
+        lst.append(e)
 
     return lst
 
@@ -114,6 +153,9 @@ cdef class IntMatrix:
         assert x >= 0 and x < self.w, f"width out of bounds {x}"
         assert y >= 0 and y < self.h, f"width out of bounds {y}"
         self.d[y * self.w + x] = c
+    cpdef mset(self, int x, int y, unsigned int c):
+        self.d[(y % self.h) * self.w + (x % self.w)] = c
+
     cpdef unsigned int get(self, int x, int y):
         return self.d[y * self.w + x]
     cpdef unsigned int mget(self, int x, int y):
@@ -152,3 +194,96 @@ cdef class IntMatrix:
         for y in range(0, mh):
             for x in range(0, mw):
                 self.set(dst_x + x, dst_y + y, src.get(x + src_x, y + src_y))
+
+    cpdef mblit_from(self, IntMatrix src, int src_x, int src_y, int dst_x, int dst_y, int mw, int mh):
+        cdef int x, y
+        for y in range(0, mh):
+            for x in range(0, mw):
+                self.set(dst_x + x, dst_y + y, src.mget(x + src_x, y + src_y))
+
+
+
+# from Lib
+cdef float rgb_to_h(float r, float g, float b):
+    cdef float maxc, minc, v, s, rc, gc, bc, h
+    maxc = max(r, g, b)
+    minc = min(r, g, b)
+    v = maxc
+    if minc == maxc:
+        return v
+    s = (maxc-minc) / maxc
+    rc = (maxc-r) / (maxc-minc)
+    gc = (maxc-g) / (maxc-minc)
+    bc = (maxc-b) / (maxc-minc)
+    if r == maxc:
+        h = bc-gc
+    elif g == maxc:
+        h = 2.0+rc-bc
+    else:
+        h = 4.0+gc-rc
+    h = (h/6.0) % 1.0
+    return h
+
+cdef (float, float, float) hsv_to_rgb(float h, float s, float v):
+    cdef float f, p, q, t
+    cdef int i
+    if s == 0.0:
+        return v, v, v
+    i = int(h*6.0) # XXX assume int() truncates!
+    f = (h*6.0) - i
+    p = v*(1.0 - s)
+    q = v*(1.0 - s*f)
+    t = v*(1.0 - s*(1.0-f))
+    i = i%6
+    if i == 0:
+        return v, t, p
+    if i == 1:
+        return q, v, p
+    if i == 2:
+        return p, v, t
+    if i == 3:
+        return p, q, v
+    if i == 4:
+        return t, p, v
+    if i == 5:
+        return v, p, q
+    # Cannot get here
+
+cdef class Color:
+    #cdef int r, g, b
+    def __init__(self):
+        self.r = 0
+        self.g = 0
+        self.b = 0
+    cdef reset(self):
+        self.r = 0
+        self.g = 0
+        self.b = 0
+    cdef add(self, unsigned int c):
+        self.r += c & 0xff
+        self.g += (c >> 8) & 0xff
+        self.b += (c >> 16) & 0xff
+    cdef div(self, int n):
+        self.r /= n
+        self.g /= n
+        self.b /= n
+
+    cdef hsv_stretch(self):
+        cdef float h, s, v, r, g, b
+        if self.r == 255 and self.g == 255 and self.b == 255:
+            return
+        h = rgb_to_h(float(self.r) / 255.0, float(self.g) / 255.0, float(self.b) / 255.0)
+        r,g,b = hsv_to_rgb(h, 1.0, 1.0)
+        self.r = int(r * 255)
+        self.g = int(g * 255)
+        self.b = int(b * 255)
+
+    cdef unsigned int as_uint(self):
+        return self.r | (self.g << 8) | (self.b << 16) | 0xff000000
+
+    cdef unsigned int as_uint_max(self):
+        return min(self.r,255) | (min(self.g,255) << 8) | (min(self.b,255) << 16) | 0xff000000
+
+
+
+

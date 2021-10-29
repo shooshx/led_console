@@ -5,7 +5,7 @@ from Cython.Build import cythonize
 this_dir = os.path.dirname(os.path.abspath(__file__))
 
 extensions = [
-    Extension("infra_callc", ["infra_callc.pyx"],
+    Extension("infra_c", ["infra_c.pyx"],
         libraries=["SDL2"],
         library_dirs=[this_dir + "/SDL2/lib/x64"]
     )

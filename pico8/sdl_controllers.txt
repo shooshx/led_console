@@ -1,0 +1,4 @@
+03000000790000000600000000000000,joystick,platform:Windows,y:b0,leftx:a1,lefty:a0~,
+
+
+to C:\Users\shooshx\AppData\Roaming\pico-8
