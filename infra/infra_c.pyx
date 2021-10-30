@@ -255,34 +255,49 @@ cdef class Color:
         self.r = 0
         self.g = 0
         self.b = 0
-    cdef reset(self):
+    cdef int reset(self):
         self.r = 0
         self.g = 0
         self.b = 0
-    cdef add(self, unsigned int c):
+        return 0
+    cdef int add(self, unsigned int c):
         self.r += c & 0xff
         self.g += (c >> 8) & 0xff
         self.b += (c >> 16) & 0xff
-    cdef div(self, int n):
+        return 0
+    cdef int set(self, unsigned int c):
+        self.r = c & 0xff
+        self.g = (c >> 8) & 0xff
+        self.b = (c >> 16) & 0xff
+        return 0
+    cdef int div(self, int n):
         self.r /= n
         self.g /= n
         self.b /= n
+        return 0
+    cdef int mult(self, float n):
+        self.r = int(float(self.r) * n)
+        self.g = int(float(self.g) * n)
+        self.b = int(float(self.b) * n)
+        return 0
 
-    cdef hsv_stretch(self):
+
+    cdef int hsv_stretch(self):
         cdef float h, s, v, r, g, b
         if self.r == 255 and self.g == 255 and self.b == 255:
-            return
+            return 0
         h = rgb_to_h(float(self.r) / 255.0, float(self.g) / 255.0, float(self.b) / 255.0)
         r,g,b = hsv_to_rgb(h, 1.0, 1.0)
         self.r = int(r * 255)
         self.g = int(g * 255)
         self.b = int(b * 255)
+        return 0
 
     cdef unsigned int as_uint(self):
-        return self.r | (self.g << 8) | (self.b << 16) | 0xff000000
+        return self.r | (self.g << 8) | (self.b << 16)
 
     cdef unsigned int as_uint_max(self):
-        return min(self.r,255) | (min(self.g,255) << 8) | (min(self.b,255) << 16) | 0xff000000
+        return min(self.r,255) | (min(self.g,255) << 8) | (min(self.b,255) << 16)
 
 
 

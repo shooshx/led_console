@@ -5,6 +5,12 @@ import infra
 import game_of_life
 # pip install Cython
 
+# controls:
+# - joysticks: move view
+# - A - reset pattern, P1:random, P2:gliders
+# - B - hold while pressing A for colored version
+# - C
+
 BOARD_HEIGHT = 256
 BOARD_WIDTH = 256
 
@@ -23,7 +29,7 @@ class State(infra.BaseHandler):
         self.disp.refresh()
 
     def step(self):
-        self.game.step()
+        self.game.step(0.96)
         self.copy_to_disp()
 
     def update_pos(self, joy):
@@ -36,9 +42,9 @@ class State(infra.BaseHandler):
         with_color = self.joys[player].btn_B
         if event == infra.JOY_BTN_A:
             if player == infra.PLAYER_1:
-                self.game.pattern_board("random", 0.5, with_color)
+                self.game.pattern_board("random", 0.5, do_color=with_color)
             else:
-                self.game.pattern_board("gliders", 200, with_color)
+                self.game.pattern_board("gliders", 200, do_color=with_color)
 
 
 def main(argv):
@@ -51,7 +57,7 @@ def main(argv):
 
     state = State(disp, joys)
     state.game.pattern_board('random', 0.5, False)
-    #state.game.pattern_board("glider", 0, True)
+    #state.game.pattern_board("glider", 0, False)
 
     state.copy_to_disp()
 

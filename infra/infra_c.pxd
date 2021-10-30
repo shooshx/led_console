@@ -22,10 +22,12 @@ cdef class IntMatrix:
 cdef class Color:
     cdef int r, g, b
 
-    cdef reset(self)
-    cdef add(self, unsigned int c)
-    cdef div(self, int n)
-    cdef hsv_stretch(self)
+    cdef int reset(self)
+    cdef int add(self, unsigned int c)
+    cdef int set(self, unsigned int c)
+    cdef int div(self, int n)
+    cdef int mult(self, float n)
+    cdef int hsv_stretch(self)
     cdef unsigned int as_uint(self)
     cdef unsigned int as_uint_max(self)
 

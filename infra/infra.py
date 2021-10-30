@@ -284,6 +284,7 @@ class InfraSDL:
         if wait > 0:
             time.sleep(wait)
         self.last_events_tick = ticks_now + wait
+        self.display.fps.rec_wait(wait)
 
 
         return True
@@ -299,6 +300,9 @@ TARGET_FRAME_TIME = 1.0 / 60.0
 class FpsShow:
     def __init__(self):
         self.count = 0
+        self.wait_sum = 0
+        self.wait_count = 0
+
         self.last_count = 0
         self.do_stop = False
         self.t = threading.Thread(target=self.fps_thread)
@@ -307,14 +311,20 @@ class FpsShow:
 
     def inc(self):
         self.count += 1
+    def rec_wait(self, v):
+        self.wait_sum += v
+        self.wait_count += 1
     def stop(self):
         self.do_stop = True
     def fps_thread(self):
         while not self.do_stop:
             time.sleep(1)
             c = self.count
-            print("fps:", c - self.last_count)
+            avg_wait = (self.wait_sum/self.wait_count * 1000) if self.wait_count > 0 else 0
+            print(f"fps: {c - self.last_count} ({avg_wait:.1f})")
             self.last_count = c
+            self.wait_sum = 0
+            self.wait_count = 0
 
 
 class NullFpsShow:
@@ -322,5 +332,6 @@ class NullFpsShow:
         pass
     def stop(self):
         pass
-
+    def rec_wait(self, v):
+        pass
 
