@@ -11,6 +11,15 @@ def check(ret):
     if ret != 0:
         print("Failed,", SDL_GetError())
 
+class DictObj:
+    def __init__(self, *pargs, **kwargs):
+        if len(pargs) > 0:
+            self.__dict__.update(pargs[0])
+        self.__dict__.update(kwargs)
+    def add(self, k, v):
+        self.__dict__[k] = v
+    def p(self, pi):
+        return self.__dict__[pi]
 
 
 class DisplaySDL:
@@ -61,9 +70,9 @@ class DisplaySDL:
             self.set_pixel(i, i, 0xff00ffff)
 
 class BaseHandler:
-    def on_key_down(self, key_code):
+    def on_key_event(self, key_code):
         pass
-    def on_joy_event(self, player, event):
+    def on_joy_event(self, eventObj):
         pass
 
 JOY_UP = 1
@@ -206,7 +215,9 @@ class InfraSDL:
         print(f"Found {count} joysticks")
 
         for pl in [PLAYER_1, PLAYER_2]:
-            self.joy_by_player[pl] = JoystickInf(None, pl)
+            j = JoystickInf(None, pl)
+            self.joy_by_player[pl] = j
+            self.joy_by_player[f"p{pl}"] = j
 
         if count == 0:
             return
@@ -222,7 +233,7 @@ class InfraSDL:
 
 
     def get_joystick_state(self):
-        return self.joy_by_player
+        return DictObj(self.joy_by_player)
 
 
     def handle_events(self, handler):
@@ -232,21 +243,23 @@ class InfraSDL:
             if event.type == SDL_QUIT:
                 return False
             if event.type == SDL_TEXTINPUT:
-                pass
+                handler.on_key_event(event.text)
                 #print("key:", event.text)
-
 
             elif event.type == SDL_JOYAXISMOTION:
                 j = self.joysticks.get(event.jid, g_null_joystick)
                 #print("joystick axis:", j.player, event.axis, event.value)
-                ev = j.got_axis_event(event)
-                handler.on_joy_event(j.player, ev)
+                event.player = j.player
+                event.event = j.got_axis_event(event)
+                handler.on_joy_event(event)
+
             elif event.type == SDL_JOYBUTTONDOWN:
                 j = self.joysticks.get(event.jid, g_null_joystick)
                 #print("joystick button:", j.player, event.button)
-                b = JOY_BTN_A + event.button
+                event.player = j.player
+                event.event = JOY_BTN_A + event.button
                 j.got_btn_down(b)
-                handler.on_joy_event(j.player, b)
+                handler.on_joy_event(event)
             elif event.type == SDL_JOYBUTTONUP:
                 j = self.joysticks.get(event.jid, g_null_joystick)
                 #print("joystick button:", j.player, event.button)
@@ -261,7 +274,9 @@ class InfraSDL:
                         ji.got_axis_keydown(ev)
                     else:
                         ji.got_btn_down(ev)
-                        handler.on_joy_event(pl, ev)
+                        event.event = ev
+                        event.player = pl
+                        handler.on_joy_event(event)
             elif event.type == SDL_KEYUP:
                 pl, ev = keyboard_joy.get(event.sym, NonePair)
                 if pl is not None:

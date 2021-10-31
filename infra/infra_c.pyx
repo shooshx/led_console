@@ -80,10 +80,6 @@ class KeyboardEvent:
         self.scancode = scancode
         self.sym = sym
 
-class DictObj:
-    def __init__(self, **kwargs):
-        self.__dict__.update(kwargs)
-
 class TextInputEvent:
     def __init__(self, etype, text):
         self.type = etype

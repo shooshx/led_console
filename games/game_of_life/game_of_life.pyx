@@ -46,7 +46,6 @@ cdef class GameOfLife:
     def pattern_board(self, str name, float n, int do_color):
         cdef int x, y, i
         self.board.fill(0)
-        color = rand_color() if do_color else 0xffffffff
         if name == "random":
             for y in range(0, self.height):
                 for x in range(0, self.width):
@@ -55,8 +54,10 @@ cdef class GameOfLife:
         elif name == "gliders":
             for i in range(0, int(n)):
                 p = GLIDER_RD if random.random() > 0.5 else GLIDER_LD
+                color = rand_color() if do_color else 0xffffffff
                 self.put_pattern(p, random.random() * self.width, random.random() * self.height, color)
         else:
+            color = rand_color() if do_color else 0xffffffff
             self.put_pattern(PATTERNS[name], 0, 0, color)
 
 

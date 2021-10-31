@@ -9,7 +9,8 @@ import game_of_life
 # - joysticks: move view
 # - A - reset pattern, P1:random, P2:gliders
 # - B - hold while pressing A for colored version
-# - C
+# - C,P1 and D,P1 - fade (state)
+# - C,P2 - pause (state)
 
 BOARD_HEIGHT = 256
 BOARD_WIDTH = 256
@@ -21,6 +22,8 @@ class State(infra.BaseHandler):
         self.offset_y = 0
         self.disp = disp
         self.joys = joys
+        self.pause = False
+        self.fade = 0.0
 
         self.game = game_of_life.GameOfLife(BOARD_WIDTH, BOARD_HEIGHT)
 
@@ -29,7 +32,7 @@ class State(infra.BaseHandler):
         self.disp.refresh()
 
     def step(self):
-        self.game.step(0.96)
+        self.game.step(self.fade)
         self.copy_to_disp()
 
     def update_pos(self, joy):
@@ -38,13 +41,21 @@ class State(infra.BaseHandler):
         #if joy.x != 0 or joy.y != 0:
         #    print("offsets:", self.offset_x, self.offset_y)
 
-    def on_joy_event(self, player, event):
-        with_color = self.joys[player].btn_B
-        if event == infra.JOY_BTN_A:
-            if player == infra.PLAYER_1:
+    def on_joy_event(self, ev):
+        with_color = self.joys.p(ev.player).btn_B
+        if ev.event == infra.JOY_BTN_A:
+            if ev.player == infra.PLAYER_1:
                 self.game.pattern_board("random", 0.5, do_color=with_color)
             else:
                 self.game.pattern_board("gliders", 200, do_color=with_color)
+        if ev.event == infra.JOY_BTN_C and ev.player == infra.PLAYER_2:
+            self.pause = not self.pause
+        if ev.player == infra.PLAYER_1:
+            if ev.event == infra.JOY_BTN_C or ev.event == infra.JOY_BTN_D:
+                if self.fade == 0:
+                    self.fade = 0.9 if ev.event == infra.JOY_BTN_C else 0.999
+                else:
+                    self.fade = 0
 
 
 def main(argv):
@@ -65,7 +76,10 @@ def main(argv):
         #time.sleep(1)
         if not inf.handle_events(state):
             break
-        state.update_pos(joys[infra.PLAYER_1])
+        state.update_pos(joys.p(infra.PLAYER_1))
+        if state.pause:
+            state.copy_to_disp()  # can still move
+            continue
         state.step()
         #state.copy_to_disp()
 
