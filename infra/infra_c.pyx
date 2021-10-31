@@ -5,7 +5,7 @@ from libc.string cimport memset
 from libc.stdint cimport uintptr_t
 
 
-cdef extern from "SDL2/include/SDL_events.h":
+cdef extern from "SDL_events.h":
     ctypedef unsigned int Uint32
     ctypedef int Sint32
     ctypedef unsigned short Uint16

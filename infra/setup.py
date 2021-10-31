@@ -7,7 +7,9 @@ this_dir = os.path.dirname(os.path.abspath(__file__))
 extensions = [
     Extension("infra_c", ["infra_c.pyx"],
         libraries=["SDL2"],
-        library_dirs=[this_dir + "/SDL2/lib/x64"]
+        library_dirs=[this_dir + "/SDL2/lib/x64"],
+        include_dirs=['/usr/include/SDL2',
+                      this_dir + "/SDL2/include"]
     )
 ]
 
