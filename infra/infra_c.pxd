@@ -18,6 +18,9 @@ cdef class IntMatrix:
     cpdef blit_from(self, IntMatrix src, int src_x, int src_y, int dst_x, int dst_y, int mw, int mh)
     cpdef mblit_from(self, IntMatrix src, int src_x, int src_y, int dst_x, int dst_y, int mw, int mh)
 
+    cpdef int width(self)
+    cpdef int height(self)
+
 
 cdef class Color:
     cdef int r, g, b

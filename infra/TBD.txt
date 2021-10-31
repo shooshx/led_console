@@ -1,3 +1,2 @@
 
 
-- constant 60 FPS for game of life

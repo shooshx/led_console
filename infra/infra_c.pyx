@@ -1,4 +1,5 @@
-import threading, time, queue, array
+import threading, time, queue, array, os
+import PIL
 
 from libc.string cimport memset
 from libc.stdint cimport uintptr_t
@@ -139,6 +140,11 @@ cdef class IntMatrix:
         self.w = w
         self.h = h
         self.reset()
+
+    cpdef int width(self):
+        return self.w
+    cpdef int height(self):
+        return self.h
 
     cpdef reset(self):
         #self.MatType = ctypes.c_uint32 * (self.w * self.h)
@@ -294,6 +300,7 @@ cdef class Color:
 
     cdef unsigned int as_uint_max(self):
         return min(self.r,255) | (min(self.g,255) << 8) | (min(self.b,255) << 16)
+
 
 
 

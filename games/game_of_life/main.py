@@ -3,7 +3,6 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "
 import infra
 
 import game_of_life
-# pip install Cython
 
 # controls:
 # - joysticks: move view
@@ -70,8 +69,6 @@ def main(argv):
     state.game.pattern_board('random', 0.5, False)
     #state.game.pattern_board("glider", 0, False)
 
-    state.copy_to_disp()
-
     while True:
         #time.sleep(1)
         if not inf.handle_events(state):
@@ -85,6 +82,7 @@ def main(argv):
 
     inf.destroy()
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))

@@ -28,7 +28,7 @@ cdef int cell_alive(unsigned int c):
 cdef class GameOfLife:
     cdef infra_c.IntMatrix board
     cdef infra_c.IntMatrix next
-    cdef int width, height, step_count
+    cdef int width, height
     cdef double last_time
 
     def __init__(self, w, h):
@@ -36,7 +36,6 @@ cdef class GameOfLife:
         self.next = infra_c.IntMatrix(w, h)
         self.width = w
         self.height = h
-        self.step_count = 0
         self.last_time = time.time()
 
     def put_pattern(self, list p, int x, int y, color):
@@ -100,7 +99,6 @@ cdef class GameOfLife:
 
     def step(self, fade):
         now = time.time()
-        self.step_count += 1
         #print("step:", self.step_count, now - self.last_time)
         self.last_time = now
         self.process(fade)

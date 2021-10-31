@@ -1,6 +1,7 @@
-import ctypes, time, threading
+import time, threading, os
 import sdl2.ext
 from sdl2 import *
+import PIL
 
 import infra_c
 
@@ -24,14 +25,15 @@ class DictObj:
 
 class DisplaySDL:
     def __init__(self, show_fps=False):
+        self.scr_width = 650
+        self.scr_height = 540
         self.window = SDL_CreateWindow(b"title",
                                   SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                                  640, 480, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE)
+                                  self.scr_width, self.scr_height, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE)
         self.surface = SDL_GetWindowSurface(self.window)
 
         self.pixels = infra_c.IntMatrix(DISP_WIDTH, DISP_HEIGHT)
-        self.scr_width = 640
-        self.scr_height = 480
+
         self.width = DISP_WIDTH
         self.height = DISP_HEIGHT
         if show_fps:
@@ -70,10 +72,10 @@ class DisplaySDL:
             self.set_pixel(i, i, 0xff00ffff)
 
 class BaseHandler:
-    def on_key_event(self, key_code):
-        pass
+    def ok_key_down_event(self, eventObj):
+        return None
     def on_joy_event(self, eventObj):
-        pass
+        return None
 
 JOY_UP = 1
 JOY_DOWN = 2
@@ -86,6 +88,7 @@ JOY_BTN_A = 10
 JOY_BTN_B = 11
 JOY_BTN_C = 12
 JOY_BTN_D = 13
+JOY_BTN_ESC = 14
 
 PLAYER_1 = 1
 PLAYER_2 = 2
@@ -93,7 +96,8 @@ PLAYER_2 = 2
 
 
 class JoystickInf:
-    def __init__(self, j, player):
+    def __init__(self, j, player, infra):
+        self.infra = infra
         self.j = j
         self.player = player # PLAYER_1 or PLAYER_2
         self.y = 0
@@ -153,6 +157,10 @@ class JoystickInf:
             self.btn_C = True
         elif b == JOY_BTN_D:
             self.btn_D = True
+        elif b == JOY_BTN_ESC:
+            if self.infra is not None:
+                return self.infra.modal_esc_menu()
+        return None
 
     def got_btn_up(self, b):
         if b == JOY_BTN_A:
@@ -166,7 +174,7 @@ class JoystickInf:
 
 
 # target for when a joystick disconnects
-g_null_joystick = JoystickInf(None, 0)
+g_null_joystick = JoystickInf(None, 0, None)
 
 keyboard_joy = {SDLK_UP: (PLAYER_1, JOY_UP),
                 SDLK_LEFT: (PLAYER_1, JOY_LEFT),
@@ -176,6 +184,7 @@ keyboard_joy = {SDLK_UP: (PLAYER_1, JOY_UP),
                 ord('['): (PLAYER_1, JOY_BTN_B),
                 ord('p'): (PLAYER_1, JOY_BTN_C),
                 ord('o'): (PLAYER_1, JOY_BTN_D),
+                ord('i'): (PLAYER_1, JOY_BTN_ESC),
 
                 ord('w'): (PLAYER_2, JOY_UP),
                 ord('a'): (PLAYER_2, JOY_LEFT),
@@ -185,6 +194,7 @@ keyboard_joy = {SDLK_UP: (PLAYER_1, JOY_UP),
                 ord('x'): (PLAYER_2, JOY_BTN_B),
                 ord('c'): (PLAYER_2, JOY_BTN_C),
                 ord('v'): (PLAYER_2, JOY_BTN_D),
+                ord('b'): (PLAYER_2, JOY_BTN_ESC),
                 }
 NonePair = (None,None)
 
@@ -195,13 +205,15 @@ class InfraSDL:
         self.joysticks = {}
         self.joy_by_player = {}
         self.last_events_tick = time.time()
-
+        self.text = PicoFont()
+        self.got_quit = False
 
         self.init_joysticks()
 
     def get_display(self, show_fps=False):
         if self.display is None:
             self.display = DisplaySDL(show_fps)
+            self.draw = ShapeDraw(self.display)
         return self.display
 
     def destroy(self):
@@ -215,7 +227,7 @@ class InfraSDL:
         print(f"Found {count} joysticks")
 
         for pl in [PLAYER_1, PLAYER_2]:
-            j = JoystickInf(None, pl)
+            j = JoystickInf(None, pl, self)
             self.joy_by_player[pl] = j
             self.joy_by_player[f"p{pl}"] = j
 
@@ -235,48 +247,70 @@ class InfraSDL:
     def get_joystick_state(self):
         return DictObj(self.joy_by_player)
 
+    def do_joy_event(self, event, ev, ji, handler):
+        if ev < JOY_BTN_A:
+            ji.got_axis_keydown(ev)
+        else:
+            bret = ji.got_btn_down(ev)
+            if bret is not None:
+                return bret
+        event.event = ev
+        event.player = ji.player
+        return handler.on_joy_event(event)
 
     def handle_events(self, handler):
+        if self.got_quit:
+            return False
         ev = infra_c.call_poll_events()
         for event in ev:
             #print("~event:", hex(event.type))
             if event.type == SDL_QUIT:
+                self.got_quit = True
                 return False
             if event.type == SDL_TEXTINPUT:
-                handler.on_key_event(event.text)
+                pass
+                #handler.on_key_event(event.text)
                 #print("key:", event.text)
 
             elif event.type == SDL_JOYAXISMOTION:
-                j = self.joysticks.get(event.jid, g_null_joystick)
+                ji = self.joysticks.get(event.jid, g_null_joystick)
                 #print("joystick axis:", j.player, event.axis, event.value)
-                event.player = j.player
-                event.event = j.got_axis_event(event)
-                handler.on_joy_event(event)
+                ev = ji.got_axis_event(event)
+                bret = self.do_joy_event(event, ev, ji, handler)
+                if bret is not None:
+                    return bret
 
             elif event.type == SDL_JOYBUTTONDOWN:
-                j = self.joysticks.get(event.jid, g_null_joystick)
+                ji = self.joysticks.get(event.jid, g_null_joystick)
                 #print("joystick button:", j.player, event.button)
-                event.player = j.player
-                event.event = JOY_BTN_A + event.button
-                j.got_btn_down(b)
-                handler.on_joy_event(event)
+                bret = self.do_joy_event(event, JOY_BTN_A + event.button, ji, handler)
+                if bret is not None:
+                    return bret
+
             elif event.type == SDL_JOYBUTTONUP:
-                j = self.joysticks.get(event.jid, g_null_joystick)
+                ji = self.joysticks.get(event.jid, g_null_joystick)
                 #print("joystick button:", j.player, event.button)
-                b = JOY_BTN_A + event.button
-                j.got_btn_up(b)
+                ji.got_btn_up(JOY_BTN_A + event.button)
 
             elif event.type == SDL_KEYDOWN:
+                # needs to be first so that the menu handler can dismiss menu on esc
+                bret = handler.ok_key_down_event(event)
+                if bret is not None:
+                    return bret
+
                 pl, ev = keyboard_joy.get(event.sym, NonePair)
                 if pl is not None:
                     ji = self.joy_by_player[pl]
-                    if ev < JOY_BTN_A:
-                        ji.got_axis_keydown(ev)
-                    else:
-                        ji.got_btn_down(ev)
-                        event.event = ev
-                        event.player = pl
-                        handler.on_joy_event(event)
+                    bret = self.do_joy_event(event, ev, ji, handler)
+                    if bret is not None:
+                        return bret
+
+                if event.sym == SDLK_ESCAPE:
+                    bret = self.joy_by_player[PLAYER_1].got_btn_down(JOY_BTN_ESC)
+                    if bret is not None:
+                        return bret
+
+
             elif event.type == SDL_KEYUP:
                 pl, ev = keyboard_joy.get(event.sym, NonePair)
                 if pl is not None:
@@ -301,8 +335,65 @@ class InfraSDL:
         self.last_events_tick = ticks_now + wait
         self.display.fps.rec_wait(wait)
 
-
         return True
+
+    def put_text(self, text, x, y):
+        self.text.put_text(self.display.pixels, text, x, y)
+
+    # returns None to do nothing, MENU_... for other things
+    def modal_esc_menu(self):
+        m = MenuEsc()
+
+        while True:
+            bret = self.handle_events(m)
+            if bret is False:
+                break
+            if bret == MENU_QUIT_APP:
+                return False
+            self.draw.frame(20, 30, 128-40, 128-60)
+            for opti, opt in enumerate(m.opt):
+                x_offs = 0
+                y = 40 + opti * (CHAR_HEIGHT + 3)
+                if m.selected == opti:
+                    self.put_text('\x17', 27, y)
+                    x_offs = 1
+                self.put_text(opt[0], 35 + x_offs, y)
+            self.display.refresh()
+        return True
+
+MENU_QUIT_APP = 1001
+MENU_CONT = 1002
+
+class MenuBase(BaseHandler):
+    def __init__(self, opts):
+        self.selected = 0
+        self.opt = opts
+    def call_selected(self):
+        return self.opt[self.selected][1]()
+    def on_joy_event(self, ev):
+        if ev.event == JOY_UP:
+            if self.selected > 0:
+                self.selected -= 1
+        elif ev.event == JOY_DOWN:
+            if self.selected < len(self.opt) - 1:
+                self.selected += 1
+        elif ev.event == JOY_BTN_A:
+            return self.call_selected()
+    def ok_key_down_event(self, event):
+        if event.sym == SDLK_RETURN:
+            return self.call_selected()
+        elif event.sym == SDLK_ESCAPE:
+            return False  # same as continue
+
+
+class MenuEsc(MenuBase):
+    def __init__(self):
+        super().__init__([("continue", self.on_cont), ("exit", self.on_exit)])
+    def on_cont(self):
+        return False
+    def on_exit(self):
+        return MENU_QUIT_APP
+
 
 
 def infra_init(name):
@@ -349,4 +440,61 @@ class NullFpsShow:
         pass
     def rec_wait(self, v):
         pass
+
+
+
+
+
+# image is made of 16x16 pixels grid
+
+CHAR_HEIGHT = 5
+
+this_dir = os.path.dirname(os.path.abspath(__file__))
+
+class PicoFont:
+    def __init__(self):
+        img = PIL.Image.open(os.path.join(this_dir, "pico-8_font_022_real_size.png"))
+        data = img.getdata()
+        self.data = [(r | (g << 8) | (b << 16)) for r,g,b in data]
+        self.data_width = img.width
+
+    def put_text(self, m, text, out_x, out_y):
+        for c in text:
+            if out_x + 3 > m.width():
+                break
+            c_num = ord(c)
+            base_y = int(c_num / 16)*8
+            base_x = int(c_num % 16)*8
+            char_width = 3
+
+            for cy in range(0, CHAR_HEIGHT):
+                for cx in range(0, char_width):
+                    color = self.data[(base_y + cy) * self.data_width + base_x + cx]
+                    if color == 0:
+                        continue
+                    m.set(out_x + cx, out_y + cy, color | 0xff000000)
+            out_x += char_width + 1
+
+
+class ShapeDraw:
+    def __init__(self, disp):
+        self.disp = disp
+
+    def frame(self, xstart, ystart, w, h):
+        xend = xstart + w
+        yend = ystart + h
+        for yi in range(ystart, yend):
+            for xi in range(xstart, xend):
+                self.disp.set_pixel(xi, yi, 0x0000ff)
+        ytop = ystart + 1
+        ybot = yend - 2
+        xleft = xstart + 1
+        xright = xend - 2
+        for xi in range(xleft, xright+1):
+            self.disp.set_pixel(xi, ytop, 0xffffff)
+            self.disp.set_pixel(xi, ybot, 0xffffff)
+        for yi in range(ytop, ybot+1):
+            self.disp.set_pixel(xleft, yi, 0xffffff)
+            self.disp.set_pixel(xright, yi, 0xffffff)
+
 

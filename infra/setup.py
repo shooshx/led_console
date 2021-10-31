@@ -17,5 +17,8 @@ setup(
     zip_safe=False,
 )
 
+# pip install Pillow
+# pip install Cython
 
 #  python setup.py build_ext --inplace
+
