@@ -1,7 +1,8 @@
-import time, threading, os
+import time, threading, os, math
 import sdl2.ext
 from sdl2 import *
 import PIL
+import cairo
 
 import infra_c
 
@@ -210,10 +211,11 @@ class InfraSDL:
 
         self.init_joysticks()
 
-    def get_display(self, show_fps=False):
+    def get_display(self, show_fps=False, with_vector=False):
         if self.display is None:
             self.display = DisplaySDL(show_fps)
             self.draw = ShapeDraw(self.display)
+            self.vdraw = VectorDraw(self.display) if with_vector else None
         return self.display
 
     def destroy(self):
@@ -481,11 +483,9 @@ class ShapeDraw:
         self.disp = disp
 
     def frame(self, xstart, ystart, w, h):
+        self.rect(xstart, ystart, w, h, 0x0000ff)
         xend = xstart + w
         yend = ystart + h
-        for yi in range(ystart, yend):
-            for xi in range(xstart, xend):
-                self.disp.set_pixel(xi, yi, 0x0000ff)
         ytop = ystart + 1
         ybot = yend - 2
         xleft = xstart + 1
@@ -496,5 +496,72 @@ class ShapeDraw:
         for yi in range(ytop, ybot+1):
             self.disp.set_pixel(xleft, yi, 0xffffff)
             self.disp.set_pixel(xright, yi, 0xffffff)
+
+    def rect(self, xstart, ystart, w, h, c):
+        xend = xstart + w
+        yend = ystart + h
+        for yi in range(ystart, yend):
+            for xi in range(xstart, xend):
+                self.disp.set_pixel(xi, yi, c)
+
+class VectorDraw:
+    def __init__(self, disp):
+        self.disp = disp
+        self.surface = cairo.ImageSurface.create_for_data(self.disp.pixels.get_memview(), cairo.FORMAT_ARGB32, self.disp.width, self.disp.height)
+        self.ctx = cairo.Context(self.surface)
+
+    def test_pattern(self):
+        ctx = self.ctx
+        ctx.scale(self.disp.width, self.disp.height)  # Normalizing the canvas
+
+        pat = cairo.LinearGradient(0.0, 0.0, 0.0, 1.0)
+        pat.add_color_stop_rgba(1, 0.7, 0, 0, 0.5)  # First stop, 50% opacity
+        pat.add_color_stop_rgba(0, 0.9, 0.7, 0.2, 1)  # Last stop, 100% opacity
+
+        ctx.rectangle(0, 0, 1, 1)  # Rectangle(x0, y0, x1, y1)
+        ctx.set_source(pat)
+        ctx.fill()
+
+        ctx.translate(0.1, 0.1)  # Changing the current transformation matrix
+
+        ctx.move_to(0, 0)
+        # Arc(cx, cy, radius, start_angle, stop_angle)
+        ctx.arc(0.2, 0.1, 0.1, -math.pi / 2, 0)
+        ctx.line_to(0.5, 0.1)  # Line to (x,y)
+        # Curve(x1, y1, x2, y2, x3, y3)
+        ctx.curve_to(0.5, 0.2, 0.5, 0.4, 0.2, 0.8)
+        ctx.close_path()
+
+        ctx.set_source_rgb(0.3, 0.2, 0.5)  # Solid color
+        ctx.set_line_width(0.02)
+        ctx.stroke()
+
+    def test_pattern2(self):
+        ctx = self.ctx
+        ctx.scale(self.disp.width, self.disp.height)
+
+        ctx.move_to(0, 0)
+        # Arc(cx, cy, radius, start_angle, stop_angle)
+        ctx.arc(0.5, 0.5, 0.1, 0, math.pi * 2)
+       # ctx.line_to(0.5, 0.1)  # Line to (x,y)
+        # Curve(x1, y1, x2, y2, x3, y3)
+       # ctx.curve_to(0.5, 0.2, 0.5, 0.4, 0.2, 0.8)
+        ctx.close_path()
+
+        ctx.set_source_rgb(0.3, 0.2, 0.5)  # Solid color
+       # ctx.set_line_width(0.02)
+       # ctx.stroke()
+        ctx.fill()
+
+    def set_color(self, c):
+        b = (c & 0xff)/255
+        g = ((c >> 8) & 0xff)/255
+        r = ((c >> 16) & 0xff)/255
+        self.ctx.set_source_rgb(r, g, b)
+
+    def circle(self, x, y, r, color):
+        self.set_color(color)
+        self.ctx.arc(x, y, r, 0, 2*math.pi)
+        self.ctx.fill()
 
 

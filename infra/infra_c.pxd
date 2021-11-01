@@ -20,6 +20,7 @@ cdef class IntMatrix:
 
     cpdef int width(self)
     cpdef int height(self)
+    cpdef get_memview(self)
 
 
 cdef class Color:

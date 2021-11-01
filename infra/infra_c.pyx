@@ -145,6 +145,8 @@ cdef class IntMatrix:
         return self.w
     cpdef int height(self):
         return self.h
+    cpdef get_memview(self):
+        return memoryview(self.d_mem)
 
     cpdef reset(self):
         #self.MatType = ctypes.c_uint32 * (self.w * self.h)
