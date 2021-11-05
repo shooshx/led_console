@@ -339,8 +339,8 @@ class InfraSDL:
 
         return True
 
-    def put_text(self, text, x, y):
-        self.text.put_text(self.display.pixels, text, x, y)
+    def put_text(self, text, x, y, upside_down=False):
+        self.text.put_text(self.display.pixels, text, x, y, upside_down)
 
     # returns None to do nothing, MENU_... for other things
     def modal_esc_menu(self):
@@ -460,7 +460,7 @@ class PicoFont:
         self.data = [(r | (g << 8) | (b << 16)) for r,g,b in data]
         self.data_width = img.width
 
-    def put_text(self, m, text, out_x, out_y):
+    def put_text(self, m, text, out_x, out_y, upside_down=False):
         for c in text:
             if out_x + 3 > m.width():
                 break
@@ -468,13 +468,18 @@ class PicoFont:
             base_y = int(c_num / 16)*8
             base_x = int(c_num % 16)*8
             char_width = 3
+            sign = 1
+            if upside_down:
+                sign = -1
+                out_x += (char_width+1) * len(text)
+                out_y += CHAR_HEIGHT
 
             for cy in range(0, CHAR_HEIGHT):
                 for cx in range(0, char_width):
                     color = self.data[(base_y + cy) * self.data_width + base_x + cx]
                     if color == 0:
                         continue
-                    m.set(out_x + cx, out_y + cy, color | 0xff000000)
+                    m.set(out_x + sign*cx, out_y + sign*cy, color | 0xff000000)
             out_x += char_width + 1
 
 
@@ -557,6 +562,12 @@ class VectorDraw:
         b = (c & 0xff)/255
         g = ((c >> 8) & 0xff)/255
         r = ((c >> 16) & 0xff)/255
+        self.ctx.set_source_rgb(r, g, b)
+
+    def set_color_f(self, c, f):
+        b = (c & 0xff)/255*f
+        g = ((c >> 8) & 0xff)/255*f
+        r = ((c >> 16) & 0xff)/255*f
         self.ctx.set_source_rgb(r, g, b)
 
     def circle(self, x, y, r, color):
