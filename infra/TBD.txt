@@ -1,3 +1,4 @@
 
 
 text with background
+pong - pause after crash and start

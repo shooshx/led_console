@@ -1,7 +1,7 @@
 import time, threading, os, math
 import sdl2.ext
 from sdl2 import *
-import PIL
+import PIL.Image
 import cairo
 
 import infra_c
@@ -453,6 +453,8 @@ CHAR_HEIGHT = 5
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 
+
+
 class PicoFont:
     def __init__(self):
         img = PIL.Image.open(os.path.join(this_dir, "pico-8_font_022_real_size.png"))
@@ -576,3 +578,28 @@ class VectorDraw:
         self.ctx.fill()
 
 
+
+class Sprite:
+    def __init__(self, filename):
+        self.img = infra_c.mat_from_image(filename)
+
+    def blit_to(self, to_mat, dst_x, dst_y):
+        to_mat.blit_from_sp(self.img, 0, 0, dst_x, dst_y, self.img.width(), self.img.height())
+
+# image made with make_anim.py
+class AnimSprite:
+    def __init__(self, filename):
+        self.img = infra_c.mat_from_image(filename)
+        # assume square
+        self.h = self.img.width()
+        self.hh = self.h // 2
+        self.w = self.img.width()
+        self.hw = self.w // 2
+        self.fnum = int(self.img.height() / self.h)
+        self.at_frame = 0
+
+    def step_blit_to(self, to_mat, dst_x, dst_y):
+        dst_x -= self.hw  # position is center of the sprite
+        dst_y -= self.hh
+        to_mat.blit_from_sp(self.img, 0, self.at_frame * self.h, dst_x, dst_y, self.w, self.h)
+        self.at_frame = (self.at_frame + 1) % self.fnum
