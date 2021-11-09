@@ -158,6 +158,7 @@ class Bonus3Balls(Bonus):
 
     def activate(self):
         print("Activated!")
+        self.state.res.bonus_sound.play()
 
 
 class Player:
@@ -174,6 +175,7 @@ class Player:
 class Resources:
     def __init__(self):
         self.balls_bonus_anim = infra.AnimSprite(os.path.join(this_path, "balls_anim3/all.png"))
+        self.bonus_sound = infra.AudioChunk(os.path.join(this_path, "audio/bonus_collect.ogg"))
 
 
 class State(infra.BaseHandler):

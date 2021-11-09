@@ -1,6 +1,7 @@
 import time, threading, os, math
 import sdl2.ext
 from sdl2 import *
+from sdl2.sdlmixer import *
 import PIL.Image
 import cairo
 
@@ -201,7 +202,7 @@ NonePair = (None,None)
 
 class InfraSDL:
     def __init__(self):
-        SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK)
+        SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_AUDIO)
         self.display = None
         self.joysticks = {}
         self.joy_by_player = {}
@@ -210,6 +211,7 @@ class InfraSDL:
         self.got_quit = False
 
         self.init_joysticks()
+        self.init_sound()
 
     def get_display(self, show_fps=False, with_vector=False):
         if self.display is None:
@@ -245,6 +247,9 @@ class InfraSDL:
             self.joysticks[jid] = ji
             ji.j = j
 
+    def init_sound(self):
+        Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 2, 4096)
+        Mix_Init(MIX_INIT_OGG)
 
     def get_joystick_state(self):
         return DictObj(self.joy_by_player)
@@ -603,3 +608,12 @@ class AnimSprite:
         dst_y -= self.hh
         to_mat.blit_from_sp(self.img, 0, self.at_frame * self.h, dst_x, dst_y, self.w, self.h)
         self.at_frame = (self.at_frame + 1) % self.fnum
+
+
+
+class AudioChunk:
+    def __init__(self, filename):
+        self.wav = Mix_LoadWAV(filename.encode('utf-8'))
+
+    def play(self):
+        Mix_PlayChannel(-1, self.wav, False)
