@@ -178,12 +178,12 @@ cdef class IntMatrix:
     cpdef mset(self, int x, int y, unsigned int c):
         self.d[(y % self.h) * self.w + (x % self.w)] = c  # TODO bitwise
 
-    cpdef madd_alpha(self, int x, int y, unsigned int c):
+    cpdef madd_alpha(self, int x, int y, unsigned int c, float f):
         cdef unsigned char* p
         cdef float a, oma
         cdef int r, g, b
 
-        a = (float(c >> 24) / 255.0)
+        a = (float(c >> 24) / 255.0) * f
         r = int((c & 0xff) * a)
         g = int(((c >> 8) & 0xff) * a)
         b = int(((c >> 16) & 0xff) * a)
@@ -235,7 +235,7 @@ cdef class IntMatrix:
                 self.set(dst_x + x, dst_y + y, src.get(x + src_x, y + src_y))
 
     # for sprites
-    cpdef blit_from_sp(self, IntMatrix src, int src_x, int src_y, int dst_x, int dst_y, int mw, int mh):
+    cpdef blit_from_sp(self, IntMatrix src, int src_x, int src_y, int dst_x, int dst_y, int mw, int mh, float f):
         cdef int x, y
         cdef unsigned int c
 
@@ -245,7 +245,7 @@ cdef class IntMatrix:
                 #if c & 0xff000000 == 0:
                 #    self.mset(dst_x + x, dst_y + y, 0xffffffff)
 
-                self.madd_alpha(dst_x + x, dst_y + y, c)
+                self.madd_alpha(dst_x + x, dst_y + y, c, f)
 
     cpdef mblit_from(self, IntMatrix src, int src_x, int src_y, int dst_x, int dst_y, int mw, int mh):
         cdef int x, y

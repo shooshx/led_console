@@ -17,7 +17,12 @@ class Vec2f:
     def copy(self):
         return Vec2f(self.x, self.y)
 
+# game hardness params
+PADDLE_MOVE = 1.5
+BALL_START_SPEED = 1.0
 PADDLE_WIDTH = 20
+
+# constants
 PADDLE_H_WIDTH = PADDLE_WIDTH // 2
 PADDLE_HEIGHT = 3
 BALL_SZ = 4
@@ -28,7 +33,11 @@ PLAYER_2_COLOR = 0xFF004D
 PLAYER_COLOR = [None, PLAYER_1_COLOR, PLAYER_2_COLOR]
 BALL_COLOR = 0xFFF1E8
 
-PADDLE_MOVE = 1.5
+BONUS_WIDTH = 10
+BONUS_H_WIDTH = BONUS_WIDTH // 2
+
+# vars
+g_now = 0
 
 class Anim:
     def __init__(self):
@@ -111,13 +120,13 @@ class AnimBallOut_Fail(Anim):
             self.color_f -= 0.1
 
             if self.color_f <= 0:
-                self.state.ball_paused = False
+                self.state.ball_paused = True
                 self.state.ball_visible = True
+                self.state.input_enabled = True
                 return False
         return True
 
-BONUS_WIDTH = 10
-BONUS_H_WIDTH = BONUS_WIDTH // 2
+
 
 # an icon that appears in the line of the player, when take has some effect
 # object is alive for as long as the effect is alive, if it's not a mementary effect
@@ -132,33 +141,41 @@ class Bonus:
 
         self.player = player
         self.x_pos = x_pos
-        self.time_created = time.time()
+        self.time_created = g_now
+        self.active = True
+        self.color_f = 1.0
 
     def init(self):
         self.y_pos = BONUS_H_WIDTH if self.player == 2 else self.state.disp.height - BONUS_H_WIDTH
 
     def do_step(self):
-        now = time.time()
-        elapsed = now - self.time_created
-        self.sprite.step_blit_to(self.state.disp.pixels, self.x_pos, self.y_pos)
-        hit = self.state.p[self.player].hit_test(self.x_pos)
-        if hit is not None:
-            self.activate()
-            return False
-        if elapsed > self.timeout:
-            return False
-        return True
-
+        if self.active:
+            elapsed = g_now - self.time_created
+            self.sprite.step_blit_to(self.state.disp.pixels, self.x_pos, self.y_pos)
+            hit = self.state.p[self.player].hit_test(self.x_pos)
+            if hit is not None:
+                self.activate()
+                self.active = False
+            if elapsed > self.timeout:
+                self.active = False
+            return True
+        else:
+            self.color_f -= 0.1
+            if self.color_f < 0:
+                return False
+            self.sprite.step_blit_to(self.state.disp.pixels, self.x_pos, self.y_pos, self.color_f)
+            return True
 
 class Bonus3Balls(Bonus):
     def init(self):
         super().init()
         self.sprite = self.state.res.balls_bonus_anim
-        self.timeout = 30
+        self.timeout = 2.5
 
     def activate(self):
         print("Activated!")
         self.state.res.bonus_sound.play()
+        self.state.split_balls()
 
 
 class Player:
@@ -171,6 +188,15 @@ class Player:
         if p2_xdist <= PADDLE_H_WIDTH:
             return p2_xdist
         return None
+
+class Ball:
+    def __init__(self, x, y, vx, vy, speed):
+        self.pos = Vec2f(x, y)
+        self.base_speed = speed
+        self.v = Vec2f(vx, vy)
+        self.v.normalize(self.base_speed)
+        self.remove = False
+
 
 class Resources:
     def __init__(self):
@@ -187,13 +213,15 @@ class State(infra.BaseHandler):
         self.p1 = Player(wh)
         self.p2 = Player(wh)
         self.p = [None, self.p1, self.p2]
-        self.ball_abs_v = 1.0
+        self.balls = []
         self.reset_ball()
         self.ball_paused = True  # waiting for any input at first
         self.ball_visible = True
+        self.input_enabled = True
         self.anims = []
         self.res = Resources()
         self.bonuses = []
+        self.bonus_last_create_time = g_now
 
     def add_anim(self, anim):
         anim.inf = self.inf
@@ -212,6 +240,7 @@ class State(infra.BaseHandler):
         bonus.inf = self.inf
         bonus.state = self
         bonus.init()
+        self.bonus_last_create_time = g_now
         self.bonuses.append(bonus)
 
     def run_bonuses(self):
@@ -226,6 +255,14 @@ class State(infra.BaseHandler):
     def rand_bonus(self):
         if len(self.bonuses) > 0:
             return
+
+        # after 5 seconds, good chance there's going to be a bonus in the next 3 second (this is called 60 times a second)
+        if g_now - self.bonus_last_create_time < 5:
+            return
+        if int(random.random() * 3 * infra.TARGET_FPS) != 1:
+            return
+        print("creating bonus, time since last: ", g_now - self.bonus_last_create_time)
+
         player = 1 if random.random() > 0.5 else 2
         p = self.p[player]
         pos_min = p.offset - PADDLE_WIDTH
@@ -242,12 +279,18 @@ class State(infra.BaseHandler):
         self.add_bonus(Bonus3Balls(player, sel_pos))
 
     def reset_ball(self):
-        self.ball_pos = Vec2f(self.disp.width // 2, self.disp.height // 2)
-
         start_dir = 1 if random.random() > 0.5 else -1
         start_sidev = random.random()*2 - 1
-        self.ball_v = Vec2f(start_sidev, start_dir)
-        self.ball_v.normalize(self.ball_abs_v)
+        ball = Ball(self.disp.width // 2, self.disp.height // 2, start_sidev, start_dir, BALL_START_SPEED)
+        self.balls.append(ball)
+
+    def split_balls(self):
+        to_add = []
+        for ball in self.balls:
+            to_add.append(Ball(ball.pos.x, ball.pos.y, random.random(), random.random(), ball.base_speed))
+            to_add.append(Ball(ball.pos.x, ball.pos.y, random.random(), random.random(), ball.base_speed))
+        for b in to_add:
+            self.balls.append(b)
 
     def draw_player(self, xpos, ysign, bottomy, color):
         self.inf.vdraw.set_color(color)
@@ -278,70 +321,91 @@ class State(infra.BaseHandler):
         self.draw_player(self.p2.offset, -1, 0, PLAYER_2_COLOR)
         # draw ball
         if self.ball_visible:
-            self.inf.vdraw.circle(self.ball_pos.x, self.ball_pos.y, BALL_SZ / 2, BALL_COLOR)
+            for ball in self.balls:
+                self.inf.vdraw.circle(ball.pos.x, ball.pos.y, BALL_SZ / 2, BALL_COLOR)
         self.draw_scores()
         self.disp.refresh()
 
     def limit_paddle(self, v):
         return min(max(v, PADDLE_WIDTH/2), self.disp.width-PADDLE_WIDTH/2)
 
-    def step(self):
-        if not self.ball_paused:
-            self.ball_pos.x += self.ball_v.x
-            self.ball_pos.y += self.ball_v.y
+    def ball_step(self, ball):
+        ball.pos.x += ball.v.x
+        ball.pos.y += ball.v.y
+
         # side walls
-        if self.ball_pos.x <= BALL_OFFSET:
-            self.ball_pos.x = BALL_OFFSET
-            self.ball_v.x = -self.ball_v.x
-        if self.ball_pos.x >= self.disp.width - 1 - BALL_OFFSET:
-            self.ball_pos.x = self.disp.width - 1 - BALL_OFFSET
-            self.ball_v.x = -self.ball_v.x
+        if ball.pos.x <= BALL_OFFSET:
+            ball.pos.x = BALL_OFFSET
+            ball.v.x = -ball.v.x
+        if ball.pos.x >= self.disp.width - 1 - BALL_OFFSET:
+            ball.pos.x = self.disp.width - 1 - BALL_OFFSET
+            ball.v.x = -ball.v.x
 
         # top bottom walls
         # area where paddle can hit
-        ball_top = self.ball_pos.y - BALL_OFFSET
-        p2_hit_xdist = self.p2.hit_test(self.ball_pos.x)
-        if ball_top <= PADDLE_HEIGHT and self.ball_v.y < 0 and p2_hit_xdist is not None:
-            self.ball_pos.y = BALL_OFFSET + PADDLE_HEIGHT
-            self.paddle_hit(p2_hit_xdist, 2)
+        ball_top = ball.pos.y - BALL_OFFSET
+        p2_hit_xdist = self.p2.hit_test(ball.pos.x)
+        if ball_top <= PADDLE_HEIGHT and ball.v.y < 0 and p2_hit_xdist is not None:
+            ball.pos.y = BALL_OFFSET + PADDLE_HEIGHT
+            self.paddle_hit(p2_hit_xdist, 2, ball)
         elif ball_top < 0:
-            self.crash(2)
+            self.crash(2, ball)
 
         # p1 hit
-        ball_bottom = self.ball_pos.y + BALL_OFFSET
+        ball_bottom = ball.pos.y + BALL_OFFSET
         last_line = self.disp.height - 1
-        p1_hit_xdist = self.p1.hit_test(self.ball_pos.x)
-        if ball_bottom >= (last_line - PADDLE_HEIGHT) and self.ball_v.y > 0 and p1_hit_xdist is not None:
-            self.ball_pos.y = last_line - BALL_OFFSET - PADDLE_HEIGHT
-            self.paddle_hit(p1_hit_xdist, 1)
+        p1_hit_xdist = self.p1.hit_test(ball.pos.x)
+        if ball_bottom >= (last_line - PADDLE_HEIGHT) and ball.v.y > 0 and p1_hit_xdist is not None:
+            ball.pos.y = last_line - BALL_OFFSET - PADDLE_HEIGHT
+            self.paddle_hit(p1_hit_xdist, 1, ball)
         elif ball_bottom > last_line:
-            self.crash(1)
+            self.crash(1, ball)
+
+    def paddle_hit(self, xdist, player, ball):
+        ball.v.y = -ball.v.y
+
+        # the furthers it is from the center of the paddle the more random the direction can get
+        off_center = (xdist / PADDLE_H_WIDTH)
+        ball.v.x += (random.random()*2 - 1) * off_center
+        ball.v.normalize(ball.base_speed)
+        self.add_anim(AnimBallPaddle(ball.pos.copy(), PLAYER_COLOR[player]))
+
+    def step(self):
+        if not self.ball_paused:
+            for ball in self.balls:
+                self.ball_step(ball)
+
+        elif self.input_enabled:
+            self.ball_paused = self.joys.p1.x == 0 and self.joys.p2.x == 0
+
+
 
         self.p1.offset = self.limit_paddle(self.p1.offset + self.joys.p1.x * PADDLE_MOVE)
         self.p2.offset = self.limit_paddle(self.p2.offset + self.joys.p2.x * PADDLE_MOVE)
 
-    def paddle_hit(self, xdist, player):
-        self.ball_v.y = -self.ball_v.y
 
-        # the furthers it is from the center of the paddle the more random the direction can get
-        off_center = (xdist / PADDLE_H_WIDTH)
-        self.ball_v.x += (random.random()*2 - 1) * off_center
-        self.ball_v.normalize(self.ball_abs_v)
-        self.add_anim(AnimBallPaddle(self.ball_pos, PLAYER_COLOR[player]))
 
-    def crash(self, player):
+    def crash(self, player, ball):
+        ball.remove = True
+        self.balls = [b for b in self.balls if not b.remove]
+        if len(self.balls) > 0:
+            return
+
         if player == 1:
             self.p1.score += 1
         else:
             self.p2.score += 1
-        self.add_anim(AnimBallOut_Fail(self.ball_pos.copy(), self))
+        self.add_anim(AnimBallOut_Fail(ball.pos.copy(), self))
         self.ball_paused = True
         self.ball_visible = False
+        self.input_enabled = False
         self.reset_ball()
 
 
 
 def main(argv):
+    global g_now
+    g_now = time.time()
     inf = infra.infra_init("sdl")
     disp = inf.get_display(show_fps=True, with_vector=True)
     joys = inf.get_joystick_state()
@@ -359,7 +423,7 @@ def main(argv):
             time.sleep(0.5)
         if not inf.handle_events(state):
             break
-
+        g_now = time.time()
         state.step()
         state.draw_board()
 

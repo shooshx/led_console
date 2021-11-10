@@ -1,4 +1,9 @@
 
 
 text with background
-pong - pause after crash and start
+pong
+- 3 ball bonus
+- sounds
+- AI
+- ball speed increases over time
+- hit momentum increases ball speed

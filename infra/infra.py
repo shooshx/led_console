@@ -10,6 +10,7 @@ import infra_c
 DISP_WIDTH = 128
 DISP_HEIGHT = 128
 
+
 def check(ret):
     if ret != 0:
         print("Failed,", SDL_GetError())
@@ -408,7 +409,8 @@ def infra_init(name):
         return InfraSDL()
     raise Exception("unknown infra " + name)
 
-TARGET_FRAME_TIME = 1.0 / 60.0
+TARGET_FPS = 60.0
+TARGET_FRAME_TIME = 1.0 / TARGET_FPS
 
 class FpsShow:
     def __init__(self):
@@ -468,18 +470,19 @@ class PicoFont:
         self.data_width = img.width
 
     def put_text(self, m, text, out_x, out_y, upside_down=False):
+        char_width = 3
+        sign = 1
+        if upside_down:
+            sign = -1
+            out_x += (char_width + 1) * len(text)
+            out_y += CHAR_HEIGHT
+
         for c in text:
             if out_x + 3 > m.width():
                 break
             c_num = ord(c)
             base_y = int(c_num / 16)*8
             base_x = int(c_num % 16)*8
-            char_width = 3
-            sign = 1
-            if upside_down:
-                sign = -1
-                out_x += (char_width+1) * len(text)
-                out_y += CHAR_HEIGHT
 
             for cy in range(0, CHAR_HEIGHT):
                 for cx in range(0, char_width):
@@ -487,7 +490,7 @@ class PicoFont:
                     if color == 0:
                         continue
                     m.set(out_x + sign*cx, out_y + sign*cy, color | 0xff000000)
-            out_x += char_width + 1
+            out_x += sign*(char_width + 1)
 
 
 class ShapeDraw:
@@ -603,10 +606,10 @@ class AnimSprite:
         self.fnum = int(self.img.height() / self.h)
         self.at_frame = 0
 
-    def step_blit_to(self, to_mat, dst_x, dst_y):
+    def step_blit_to(self, to_mat, dst_x, dst_y, f = 1.0):
         dst_x -= self.hw  # position is center of the sprite
         dst_y -= self.hh
-        to_mat.blit_from_sp(self.img, 0, self.at_frame * self.h, dst_x, dst_y, self.w, self.h)
+        to_mat.blit_from_sp(self.img, 0, self.at_frame * self.h, dst_x, dst_y, self.w, self.h, f)
         self.at_frame = (self.at_frame + 1) % self.fnum
 
 
