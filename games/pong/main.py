@@ -16,6 +16,16 @@ class Vec2f:
         self.y *= abs_len / l
     def copy(self):
         return Vec2f(self.x, self.y)
+    def dist(self, v):
+        dx = self.x - v.x
+        dy = self.y - v.y
+        return math.sqrt(dx*dx + dy*dy)
+
+def sign(v):
+    return 1 if v >= 0 else -1
+
+def rand_unit():
+    return random.random()*2 - 1
 
 # game hardness params
 PADDLE_MOVE = 1.5
@@ -142,21 +152,23 @@ class Bonus:
         self.player = player
         self.x_pos = x_pos
         self.time_created = g_now
+        self.elapsed = 0
         self.active = True
         self.color_f = 1.0
+        self.bad_bonus = False
 
     def init(self):
         self.y_pos = BONUS_H_WIDTH if self.player == 2 else self.state.disp.height - BONUS_H_WIDTH
 
     def do_step(self):
         if self.active:
-            elapsed = g_now - self.time_created
+            self.elapsed = infra.time_scaled(g_now - self.time_created)
             self.sprite.step_blit_to(self.state.disp.pixels, self.x_pos, self.y_pos)
             hit = self.state.p[self.player].hit_test(self.x_pos)
             if hit is not None:
                 self.activate()
                 self.active = False
-            if elapsed > self.timeout:
+            if self.elapsed > self.timeout:
                 self.active = False
             return True
         else:
@@ -170,24 +182,109 @@ class Bonus3Balls(Bonus):
     def init(self):
         super().init()
         self.sprite = self.state.res.balls_bonus_anim
-        self.timeout = 2.5
+        self.timeout = infra.time_scaled(2.5)
 
     def activate(self):
         print("Activated!")
-        self.state.res.bonus_sound.play()
+        self.state.res.bonus_sound[self.player].play()
+        #self.state.res.bonus_sound.play()
         self.state.split_balls()
 
 
+class AI:
+    def __init__(self, p, state):
+        self.p = p  # player object
+        self.dest_x_offset = None  # where I want to go
+        self.step_num = 0
+        self.state = state
+
+    def step(self):
+        self.step_num += 1
+        # twice a second reevaluate your choices
+        if (self.step_num % 30) == 0:
+            # if we don't have a ball or if the the ball we were tracking is gone, choose a new one
+            self.dest_x_offset = self.predict_next_ball_hit()
+            #print("player", self.p.player, "predict", self.dest_x_offset)
+            if self.dest_x_offset is None:  # nothing to do
+                self.dest_x_offset = self.go_to_bonus()
+
+        if self.dest_x_offset is None:
+            return
+
+        d = self.dest_x_offset - self.p.offset_x
+        if abs(d) < 4:
+            return
+        if d < 0:
+            self.p.move(-1)
+        else:
+            self.p.move(1)
+
+    def go_to_bonus(self):
+        bonus = self.state.get_player_bonus(self.p.player)
+        if bonus is None or bonus.bad_bonus or bonus.elapsed < 1:  # don't go to it immediately
+            return None
+        return bonus.x_pos
+
+    def predict_next_ball_hit(self):
+        to_me_sign = 1 if self.p.player == 1 else -1
+        min_steps = 9999
+        min_s_pos = None
+        for b in self.state.balls:
+            if sign(b.v.y) != to_me_sign:
+                continue
+            pos, num_steps = self.predict_ball_hit(b.copy())
+            if pos is None:
+                continue
+            if num_steps < min_steps:
+                min_steps = num_steps
+                min_s_pos = pos
+        return min_s_pos
+
+    def predict_ball_hit(self, ball):
+        for i in range(0, 100):
+            self.state.ball_advance(ball)
+
+            if self.p.player == 2:
+                ball_top = ball.pos.y - BALL_OFFSET
+                if ball_top <= PADDLE_HEIGHT:
+                    return ball.pos.x, i
+            elif self.p.player == 1:
+                ball_bottom = ball.pos.y + BALL_OFFSET
+                last_line = self.state.disp.height - 1
+                if ball_bottom >= (last_line - PADDLE_HEIGHT):
+                    return ball.pos.x, i
+        return None, None
+
+
 class Player:
-    def __init__(self, wh):
-        self.offset = wh
+    def __init__(self, wh, state, player, ai):
+        self.offset_x = wh
         self.score = 0
+        self.state = state
+        self.player = player  # 1 or 2
+        self.paddle_y = PADDLE_HEIGHT if player == 2 else (self.state.disp.height - 1 - PADDLE_HEIGHT)
+        if ai:
+            self.ai = AI(self, state)
+        else:
+            self.ai = None
 
     def hit_test(self, ball_pos_x):
-        p2_xdist = abs(ball_pos_x - self.offset)
+        p2_xdist = abs(ball_pos_x - self.offset_x)
         if p2_xdist <= PADDLE_H_WIDTH:
             return p2_xdist
         return None
+
+    def move(self, sign):
+        self.offset_x = self.limit_paddle(self.offset_x + sign * PADDLE_MOVE)
+
+    def step(self):
+        self.move(self.state.joys.p(self.player).x)  # joy.x is either 0,1,-1
+        if self.ai is not None and not self.state.ball_paused:  # would be suspicious if ai moved when the ball is paused since it's the start of the game
+            self.ai.step()
+
+    def limit_paddle(self, v):
+        return min(max(v, PADDLE_WIDTH/2), self.state.disp.width-PADDLE_WIDTH/2)
+
 
 class Ball:
     def __init__(self, x, y, vx, vy, speed):
@@ -197,11 +294,22 @@ class Ball:
         self.v.normalize(self.base_speed)
         self.remove = False
 
+    def copy(self):
+        return Ball(self.pos.x, self.pos.y, self.v.x, self.v.y, self.base_speed)
+
+P1_SIDE = "left"
+P2_SIDE = "right"
+
+def by_player_audio(pattern):
+    p1 = pattern.replace('PPP', P1_SIDE)
+    p2 = pattern.replace('PPP', P2_SIDE)
+    assert os.path.exists(p1) and os.path.exists(p2), f"{p1},{p2}"
+    return [None, infra.AudioChunk(p1), infra.AudioChunk(p2)]
 
 class Resources:
     def __init__(self):
         self.balls_bonus_anim = infra.AnimSprite(os.path.join(this_path, "balls_anim3/all.png"))
-        self.bonus_sound = infra.AudioChunk(os.path.join(this_path, "audio/bonus_collect.ogg"))
+        self.bonus_sound = by_player_audio(os.path.join(this_path, "audio/bonus_collect_PPP.ogg"))
 
 
 class State(infra.BaseHandler):
@@ -210,8 +318,8 @@ class State(infra.BaseHandler):
         self.joys = joys
         self.inf = inf
         wh = disp.width // 2
-        self.p1 = Player(wh)
-        self.p2 = Player(wh)
+        self.p1 = Player(wh, self, 1, True)
+        self.p2 = Player(wh, self, 2, True)
         self.p = [None, self.p1, self.p2]
         self.balls = []
         self.reset_ball()
@@ -257,18 +365,18 @@ class State(infra.BaseHandler):
             return
 
         # after 5 seconds, good chance there's going to be a bonus in the next 3 second (this is called 60 times a second)
-        if g_now - self.bonus_last_create_time < 5:
+        if g_now - self.bonus_last_create_time < infra.time_scaled(7):
             return
-        if int(random.random() * 3 * infra.TARGET_FPS) != 1:
+        if int(random.random() * 7 * infra.PRINCIPLE_FPS) != 1:
             return
         print("creating bonus, time since last: ", g_now - self.bonus_last_create_time)
 
         player = 1 if random.random() > 0.5 else 2
         p = self.p[player]
-        pos_min = p.offset - PADDLE_WIDTH
-        pos_max = p.offset + PADDLE_WIDTH
+        pos_min = p.offset_x - PADDLE_WIDTH
+        pos_max = p.offset_x + PADDLE_WIDTH
         sel_pos = None
-        for i in range(0,10):
+        for i in range(0, 10):
             pos = random.random() * (self.disp.width - BONUS_WIDTH) + BONUS_H_WIDTH
             if pos > pos_max or pos < pos_min:
                 sel_pos = pos
@@ -278,17 +386,23 @@ class State(infra.BaseHandler):
 
         self.add_bonus(Bonus3Balls(player, sel_pos))
 
+    def get_player_bonus(self, player):
+        for b in self.bonuses:
+            if b.player == player:
+                return b
+        return None
+
     def reset_ball(self):
         start_dir = 1 if random.random() > 0.5 else -1
-        start_sidev = random.random()*2 - 1
+        start_sidev = rand_unit()
         ball = Ball(self.disp.width // 2, self.disp.height // 2, start_sidev, start_dir, BALL_START_SPEED)
         self.balls.append(ball)
 
     def split_balls(self):
         to_add = []
         for ball in self.balls:
-            to_add.append(Ball(ball.pos.x, ball.pos.y, random.random(), random.random(), ball.base_speed))
-            to_add.append(Ball(ball.pos.x, ball.pos.y, random.random(), random.random(), ball.base_speed))
+            to_add.append(Ball(ball.pos.x, ball.pos.y, rand_unit(), rand_unit(), ball.base_speed))
+            to_add.append(Ball(ball.pos.x, ball.pos.y, rand_unit(), rand_unit(), ball.base_speed))
         for b in to_add:
             self.balls.append(b)
 
@@ -317,8 +431,8 @@ class State(infra.BaseHandler):
 
         self.run_anims()
         self.run_bonuses()
-        self.draw_player(self.p1.offset, 1, self.disp.height - 1, PLAYER_1_COLOR)
-        self.draw_player(self.p2.offset, -1, 0, PLAYER_2_COLOR)
+        self.draw_player(self.p1.offset_x, 1, self.disp.height - 1, PLAYER_1_COLOR)
+        self.draw_player(self.p2.offset_x, -1, 0, PLAYER_2_COLOR)
         # draw ball
         if self.ball_visible:
             for ball in self.balls:
@@ -326,10 +440,8 @@ class State(infra.BaseHandler):
         self.draw_scores()
         self.disp.refresh()
 
-    def limit_paddle(self, v):
-        return min(max(v, PADDLE_WIDTH/2), self.disp.width-PADDLE_WIDTH/2)
 
-    def ball_step(self, ball):
+    def ball_advance(self, ball):
         ball.pos.x += ball.v.x
         ball.pos.y += ball.v.y
 
@@ -340,6 +452,9 @@ class State(infra.BaseHandler):
         if ball.pos.x >= self.disp.width - 1 - BALL_OFFSET:
             ball.pos.x = self.disp.width - 1 - BALL_OFFSET
             ball.v.x = -ball.v.x
+
+    def ball_step(self, ball):
+        self.ball_advance(ball)
 
         # top bottom walls
         # area where paddle can hit
@@ -374,15 +489,12 @@ class State(infra.BaseHandler):
         if not self.ball_paused:
             for ball in self.balls:
                 self.ball_step(ball)
-
         elif self.input_enabled:
             self.ball_paused = self.joys.p1.x == 0 and self.joys.p2.x == 0
 
-
-
-        self.p1.offset = self.limit_paddle(self.p1.offset + self.joys.p1.x * PADDLE_MOVE)
-        self.p2.offset = self.limit_paddle(self.p2.offset + self.joys.p2.x * PADDLE_MOVE)
-
+        if self.input_enabled:
+            self.p1.step()
+            self.p2.step()
 
 
     def crash(self, player, ball):

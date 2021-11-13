@@ -412,6 +412,13 @@ def infra_init(name):
 TARGET_FPS = 60.0
 TARGET_FRAME_TIME = 1.0 / TARGET_FPS
 
+# this is used for time dependent events that need to draw chance every frame
+# not useing TARGET_FPS since I don't want them slowed down in high-fps mode
+PRINCIPLE_FPS = 60
+# in high-fps mode this is used for scaling any time contants
+def time_scaled(period):
+    return period * PRINCIPLE_FPS / TARGET_FPS
+
 class FpsShow:
     def __init__(self):
         self.count = 0
@@ -613,7 +620,7 @@ class AnimSprite:
         self.at_frame = (self.at_frame + 1) % self.fnum
 
 
-
+# https://lazyfoo.net/SDL_tutorials/lesson11/index.php
 class AudioChunk:
     def __init__(self, filename):
         self.wav = Mix_LoadWAV(filename.encode('utf-8'))
