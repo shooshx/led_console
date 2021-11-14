@@ -142,7 +142,7 @@ cpdef mat_from_image(str filename):
     mat = IntMatrix(img.width, img.height)
     assert(img.mode == "RGBA")
     i = 0
-    for r, g, b, a in img_data:
+    for b, g, r, a in img_data:
         col = r | (g << 8) | (b << 16) | (a << 24)
         mat.d[i] = col
         i += 1
@@ -253,7 +253,21 @@ cdef class IntMatrix:
             for x in range(0, mw):
                 self.set(dst_x + x, dst_y + y, src.mget(x + src_x, y + src_y))
 
+    def rect_fill(self, int xstart, int ystart, int w, int h, unsigned int c):
+        cdef int xend, yend, yi, xi
+        xend = xstart + w
+        yend = ystart + h
+        for yi in range(ystart, yend):
+            for xi in range(xstart, xend):
+                self.set(xi, yi, c)
 
+    def rect_fill_a(self, int xstart, int ystart, int w, int h, unsigned int c):
+        cdef int xend, yend, yi, xi
+        xend = xstart + w
+        yend = ystart + h
+        for yi in range(ystart, yend):
+            for xi in range(xstart, xend):
+                self.madd_alpha(xi, yi, c, 1.0)
 
 # from Lib
 cdef float rgb_to_h(float r, float g, float b):

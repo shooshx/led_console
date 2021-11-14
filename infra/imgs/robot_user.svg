@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:d="https://loading.io/stock/"
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   inkscape:version="1.0 (4035a4fb49, 2020-05-01)"
+   inkscape:export-ydpi="16.799999"
+   inkscape:export-xdpi="16.799999"
+   inkscape:export-filename="C:\Projects\led_console\infra\imgs\robot_user.png"
+   sodipodi:docname="robot-1.1s-200px.svg"
+   style="width:100%;height:100%;background-size:initial;background-repeat-y:initial;background-repeat-x:initial;background-position-y:initial;background-position-x:initial;background-origin:initial;background-image:initial;background-color:rgb(255, 255, 255);background-clip:initial;background-attachment:initial;animation-play-state:paused"
+   height="200px"
+   width="200px"
+   version="1.1"
+   id="Layer_1"
+   x="0"
+   y="0"
+   viewBox="0 0 100 100"
+   xml:space="preserve"><metadata
+     id="metadata35"><rdf:RDF><cc:Work
+         rdf:about=""><dc:format>image/svg+xml</dc:format><dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" /></cc:Work></rdf:RDF></metadata><defs
+     id="defs33" /><sodipodi:namedview
+     inkscape:current-layer="Layer_1"
+     inkscape:window-maximized="0"
+     inkscape:window-y="26"
+     inkscape:window-x="200"
+     inkscape:cy="81.997871"
+     inkscape:cx="100.97948"
+     inkscape:zoom="3.5638182"
+     showgrid="false"
+     id="namedview31"
+     inkscape:window-height="1257"
+     inkscape:window-width="1780"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0"
+     guidetolerance="10"
+     gridtolerance="10"
+     objecttolerance="10"
+     borderopacity="1"
+     bordercolor="#666666"
+     pagecolor="#ffffff" /><g
+     id="g28"
+     style="transform-origin:50% 50%;transform:rotate(0deg) scale(0.8, 0.8);animation-play-state:paused"
+     class="ldl-scale"><path
+   id="path2"
+   style="stroke:rgb(51, 51, 51);animation-play-state:paused"
+   stroke-miterlimit="10"
+   fill="none"
+   stroke="#333"
+   stroke-width="3.5"
+   d="M50 17.903v31.733" />
+<circle
+   id="circle4"
+   style="stroke:rgb(51, 51, 51);fill:rgb(225, 92, 100);animation-play-state:paused"
+   cx="50"
+   cy="17.903"
+   r="7.903"
+   stroke-width="3.5"
+   fill="#e15c64"
+   stroke="#333"
+   stroke-miterlimit="10" />
+<path
+   id="path6"
+   style="stroke:rgb(51, 51, 51);fill:rgb(102, 103, 102);animation-play-state:paused"
+   d="M78.857 78.057h-1.023a6.69 6.69 0 0 1-6.69-6.69V57.366a6.69 6.69 0 0 1 6.69-6.69h1.023a6.69 6.69 0 0 1 6.69 6.69v14.002a6.69 6.69 0 0 1-6.69 6.689z"
+   stroke-width="3.5"
+   stroke-miterlimit="10"
+   fill="#666766"
+   stroke="#333" />
+<path
+   id="path8"
+   style="stroke:rgb(51, 51, 51);fill:rgb(102, 103, 102);animation-play-state:paused"
+   d="M21.143 78.057h1.023a6.69 6.69 0 0 0 6.69-6.69V57.366a6.69 6.69 0 0 0-6.69-6.69h-1.023a6.69 6.69 0 0 0-6.69 6.69v14.002a6.69 6.69 0 0 0 6.69 6.689z"
+   stroke-width="3.5"
+   stroke-miterlimit="10"
+   fill="#666766"
+   stroke="#333" />
+<path
+   id="path10"
+   style="stroke:rgb(51, 51, 51);fill:rgb(224, 224, 224);animation-play-state:paused"
+   d="M71.646 90H28.354a5.133 5.133 0 0 1-5.133-5.133V41.399a5.133 5.133 0 0 1 5.133-5.133h43.293a5.133 5.133 0 0 1 5.133 5.133v43.468A5.134 5.134 0 0 1 71.646 90z"
+   fill="#e0e0e0"
+   stroke="#333"
+   stroke-width="3.5"
+   stroke-miterlimit="10" />
+<path
+   id="path12"
+   style="stroke:rgb(51, 51, 51);fill:rgb(255, 255, 255);animation-play-state:paused"
+   d="M37.944 69.948a6.057 6.057 0 0 0-6.057 6.057v0a6.057 6.057 0 0 0 6.057 6.057h1.658V69.948h-1.658z"
+   stroke-width="3.5"
+   fill="#fff"
+   stroke="#333"
+   stroke-miterlimit="10" />
+<path
+   id="path14"
+   style="stroke:rgb(51, 51, 51);fill:rgb(255, 255, 255);animation-play-state:paused"
+   stroke-width="3.5"
+   fill="#fff"
+   stroke="#333"
+   stroke-miterlimit="10"
+   d="M39.602 69.948h6.932v12.115h-6.932z" />
+<path
+   id="path16"
+   style="stroke:rgb(51, 51, 51);fill:rgb(255, 255, 255);animation-play-state:paused"
+   stroke-width="3.5"
+   fill="#fff"
+   stroke="#333"
+   stroke-miterlimit="10"
+   d="M46.534 69.948h6.932v12.115h-6.932z" />
+<path
+   id="path18"
+   style="stroke:rgb(51, 51, 51);fill:rgb(255, 255, 255);animation-play-state:paused"
+   d="M62.056 69.948h-1.658v12.115h1.658a6.057 6.057 0 0 0 6.057-6.057v0a6.057 6.057 0 0 0-6.057-6.058z"
+   stroke-width="3.5"
+   fill="#fff"
+   stroke="#333"
+   stroke-miterlimit="10" />
+<path
+   id="path20"
+   style="stroke:rgb(51, 51, 51);fill:rgb(255, 255, 255);animation-play-state:paused"
+   stroke-width="3.5"
+   fill="#fff"
+   stroke="#333"
+   stroke-miterlimit="10"
+   d="M53.466 69.948h6.932v12.115h-6.932z" />
+<circle
+   id="circle22"
+   style="stroke:rgb(51, 51, 51);fill:rgb(172, 189, 129);animation-play-state:paused"
+   cx="37.829"
+   cy="53.343"
+   r="5.942"
+   stroke-miterlimit="10"
+   fill="#acbd81"
+   stroke="#333"
+   stroke-width="3.5" />
+<circle
+   id="circle24"
+   style="stroke:rgb(51, 51, 51);fill:rgb(172, 189, 129);animation-play-state:paused"
+   cx="62.171"
+   cy="53.343"
+   r="5.942"
+   stroke-miterlimit="10"
+   fill="#acbd81"
+   stroke="#333"
+   stroke-width="3.5" />
+<metadata
+   id="metadata26"
+   style="animation-play-state:paused"><d:name
+   style="animation-play-state:paused">robot</d:name>
+
+
+<d:tags
+   style="animation-play-state:paused">robot,chatbot,android,turing test,cyborg,ai,artificial intelligence,machine learning</d:tags>
+
+
+<d:license
+   style="animation-play-state:paused">by</d:license>
+
+
+<d:slug
+   style="animation-play-state:paused">6jj3nx</d:slug></metadata></g><!-- generated by https://loading.io/ --></svg>

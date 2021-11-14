@@ -10,6 +10,8 @@ import infra_c
 DISP_WIDTH = 128
 DISP_HEIGHT = 128
 
+this_dir = os.path.dirname(os.path.abspath(__file__))
+imgs_path = os.path.join(this_dir, "imgs")
 
 def check(ret):
     if ret != 0:
@@ -92,11 +94,12 @@ JOY_BTN_B = 11
 JOY_BTN_C = 12
 JOY_BTN_D = 13
 JOY_BTN_ESC = 14
+JOY_BTN_START = 15
 
 PLAYER_1 = 1
 PLAYER_2 = 2
 
-
+JOY_ANY_ARROW = [JOY_UP, JOY_DOWN, JOY_LEFT, JOY_RIGHT]
 
 class JoystickInf:
     def __init__(self, j, player, infra):
@@ -109,6 +112,7 @@ class JoystickInf:
         self.btn_B = False
         self.btn_C = False
         self.btn_D = False
+        self.btn_Start = False
 
     def got_axis_event(self, event):
         if event.axis == 0:
@@ -160,6 +164,8 @@ class JoystickInf:
             self.btn_C = True
         elif b == JOY_BTN_D:
             self.btn_D = True
+        elif b == JOY_BTN_START:
+            self.btn_Start = True
         elif b == JOY_BTN_ESC:
             if self.infra is not None:
                 return self.infra.modal_esc_menu()
@@ -174,7 +180,8 @@ class JoystickInf:
             self.btn_C = False
         elif b == JOY_BTN_D:
             self.btn_D = False
-
+        elif b == JOY_BTN_START:
+            self.btn_Start = False
 
 # target for when a joystick disconnects
 g_null_joystick = JoystickInf(None, 0, None)
@@ -188,6 +195,7 @@ keyboard_joy = {SDLK_UP: (PLAYER_1, JOY_UP),
                 ord('p'): (PLAYER_1, JOY_BTN_C),
                 ord('o'): (PLAYER_1, JOY_BTN_D),
                 ord('i'): (PLAYER_1, JOY_BTN_ESC),
+                ord('u'): (PLAYER_1, JOY_BTN_START),
 
                 ord('w'): (PLAYER_2, JOY_UP),
                 ord('a'): (PLAYER_2, JOY_LEFT),
@@ -198,6 +206,7 @@ keyboard_joy = {SDLK_UP: (PLAYER_1, JOY_UP),
                 ord('c'): (PLAYER_2, JOY_BTN_C),
                 ord('v'): (PLAYER_2, JOY_BTN_D),
                 ord('b'): (PLAYER_2, JOY_BTN_ESC),
+                ord('n'): (PLAYER_2, JOY_BTN_START),
                 }
 NonePair = (None,None)
 
@@ -520,11 +529,26 @@ class ShapeDraw:
             self.disp.set_pixel(xright, yi, 0xffffff)
 
     def rect(self, xstart, ystart, w, h, c):
-        xend = xstart + w
-        yend = ystart + h
-        for yi in range(ystart, yend):
-            for xi in range(xstart, xend):
-                self.disp.set_pixel(xi, yi, c)
+        self.disp.pixels.rect_fill(xstart, ystart, w, h, c)
+
+    def rect_a(self, xstart, ystart, w, h, c):
+        self.disp.pixels.rect_fill_a(xstart, ystart, w, h, c)
+
+    def round_rect(self, xleft, ytop, w, h, c):
+        ybot = ytop + h
+        xright = xleft + w
+        disp = self.disp
+        for xi in range(xleft + 2, xright - 1):
+            disp.set_pixel(xi, ytop, c)
+            disp.set_pixel(xi, ybot, c)
+        for yi in range(ytop + 2, ybot - 1):
+            disp.set_pixel(xleft, yi, c)
+            disp.set_pixel(xright, yi, c)
+        disp.set_pixel(xleft + 1, ytop + 1, c)
+        disp.set_pixel(xleft + 1, ybot - 1, c)
+        disp.set_pixel(xright - 1, ytop + 1, c)
+        disp.set_pixel(xright - 1, ybot - 1, c)
+
 
 class VectorDraw:
     def __init__(self, disp):
@@ -599,7 +623,12 @@ class Sprite:
         self.img = infra_c.mat_from_image(filename)
 
     def blit_to(self, to_mat, dst_x, dst_y):
-        to_mat.blit_from_sp(self.img, 0, 0, dst_x, dst_y, self.img.width(), self.img.height())
+        to_mat.blit_from_sp(self.img, 0, 0, dst_x, dst_y, self.img.width(), self.img.height(), 1.0)
+
+    def blit_to_center(self, to_mat, center_x, center_y):
+        ytop = center_y - self.img.height() // 2
+        xleft = center_x - self.img.width() // 2
+        self.blit_to(to_mat, xleft, ytop)
 
 # image made with make_anim.py
 class AnimSprite:

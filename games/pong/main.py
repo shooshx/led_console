@@ -45,6 +45,7 @@ BALL_COLOR = 0xFFF1E8
 
 BONUS_WIDTH = 10
 BONUS_H_WIDTH = BONUS_WIDTH // 2
+MAX_BALL_SLOPE = 3
 
 # vars
 g_now = 0
@@ -257,28 +258,31 @@ class AI:
 
 
 class Player:
-    def __init__(self, wh, state, player, ai):
+    def __init__(self, wh, state, player, plid):
         self.offset_x = wh
         self.score = 0
         self.state = state
         self.player = player  # 1 or 2
         self.paddle_y = PADDLE_HEIGHT if player == 2 else (self.state.disp.height - 1 - PADDLE_HEIGHT)
-        if ai:
+        self.plid = plid
+        if plid == PLID_AI:
             self.ai = AI(self, state)
         else:
             self.ai = None
 
     def hit_test(self, ball_pos_x):
-        p2_xdist = abs(ball_pos_x - self.offset_x)
-        if p2_xdist <= PADDLE_H_WIDTH:
-            return p2_xdist
+        dist = ball_pos_x - self.offset_x
+        adist = abs(dist)
+        if adist <= PADDLE_H_WIDTH:
+            return dist
         return None
 
     def move(self, sign):
         self.offset_x = self.limit_paddle(self.offset_x + sign * PADDLE_MOVE)
 
     def step(self):
-        self.move(self.state.joys.p(self.player).x)  # joy.x is either 0,1,-1
+        if self.state.user_input_enabled:
+            self.move(self.state.joys.p(self.player).x)  # joy.x is either 0,1,-1
         if self.ai is not None and not self.state.ball_paused:  # would be suspicious if ai moved when the ball is paused since it's the start of the game
             self.ai.step()
 
@@ -309,7 +313,42 @@ def by_player_audio(pattern):
 class Resources:
     def __init__(self):
         self.balls_bonus_anim = infra.AnimSprite(os.path.join(this_path, "balls_anim3/all.png"))
+        self.menu_girl = infra.Sprite(os.path.join(infra.imgs_path, "girl_user.png"))
+        self.menu_robot = infra.Sprite(os.path.join(infra.imgs_path, "robot_user.png"))
         self.bonus_sound = by_player_audio(os.path.join(this_path, "audio/bonus_collect_PPP.ogg"))
+
+PLID_AI = 0
+PLID_GIRL = 1
+
+class PlayersMenu:
+    def __init__(self, state):
+        self.state = state
+        self.p_sel = [None, state.p[1].plid, state.p[2].plid]
+        self.sprites = [ self.state.res.menu_robot, self.state.res.menu_girl ]
+
+    def draw(self):
+        xmargin = 40
+        ymargin = 25
+        dw = self.state.disp.width
+        dh = self.state.disp.height
+        hdw = dw // 2
+        hdh = dh // 2
+        w = dw - xmargin*2
+        h = dh - ymargin*2
+
+        self.state.inf.draw.rect_a(xmargin + 1, ymargin + 1, w-1, h-1, 0xcc008751)
+        self.state.inf.draw.round_rect(xmargin, ymargin, w, h, 0xffffff)
+
+        self.sprites[self.p_sel[2]].blit_to_center(self.state.disp.pixels, hdw, hdh - 20)
+        self.sprites[self.p_sel[1]].blit_to_center(self.state.disp.pixels, hdw, hdh + 20)
+
+    def on_joy_event(self, eventObj):
+        if eventObj.event in infra.JOY_ANY_ARROW:
+            self.p_sel[eventObj.player] = (self.p_sel[eventObj.player] + 1) % 2
+        if eventObj.event == infra.JOY_BTN_A or eventObj.event == infra.JOY_BTN_START:
+            self.state.hide_players_menu()
+            self.state.start_new_game(self.p_sel[1], self.p_sel[2])
+
 
 
 class State(infra.BaseHandler):
@@ -317,17 +356,39 @@ class State(infra.BaseHandler):
         self.disp = disp
         self.joys = joys
         self.inf = inf
-        wh = disp.width // 2
-        self.p1 = Player(wh, self, 1, True)
-        self.p2 = Player(wh, self, 2, True)
+        self.res = Resources()
+        self.start_new_game(PLID_AI, PLID_AI)  # let it play in the back of the menu
+        self.show_players_menu()
+
+    def show_players_menu(self):
+        self.user_input_enabled = False
+        self.menu = PlayersMenu(self)
+
+    def hide_players_menu(self):
+        self.user_input_enabled = True
+        self.menu = None
+
+    def on_joy_event(self, eventObj):
+        if self.menu is not None:
+            self.menu.on_joy_event(eventObj)
+            return
+
+        if eventObj.event == infra.JOY_BTN_START:
+            self.show_players_menu()
+
+    def start_new_game(self, p1_id, p2_id):
+        print("new game:", p1_id, p2_id)
+        wh = self.disp.width // 2
+        self.p1 = Player(wh, self, 1, p1_id)
+        self.p2 = Player(wh, self, 2, p2_id)
         self.p = [None, self.p1, self.p2]
         self.balls = []
         self.reset_ball()
-        self.ball_paused = True  # waiting for any input at first
+        self.ball_paused = not (p1_id == PLID_AI and p2_id == PLID_AI)  # waiting for any input at first, unless both are AI
         self.ball_visible = True
-        self.input_enabled = True
+        self.input_enabled = True  # for both user and AI
+        self.user_input_enabled = True
         self.anims = []
-        self.res = Resources()
         self.bonuses = []
         self.bonus_last_create_time = g_now
 
@@ -401,10 +462,19 @@ class State(infra.BaseHandler):
     def split_balls(self):
         to_add = []
         for ball in self.balls:
-            to_add.append(Ball(ball.pos.x, ball.pos.y, rand_unit(), rand_unit(), ball.base_speed))
-            to_add.append(Ball(ball.pos.x, ball.pos.y, rand_unit(), rand_unit(), ball.base_speed))
+            for b in range(0, 2):
+                for i in range(0, 10):
+                    vx = rand_unit()
+                    vy = rand_unit()
+                    # try again slope to not be too shallow
+                    if abs(vx / vy) < MAX_BALL_SLOPE:
+                        break
+
+                to_add.append(Ball(ball.pos.x, ball.pos.y, vx, vy, ball.base_speed))
+
         for b in to_add:
             self.balls.append(b)
+        print("number of balls:", len(self.balls))
 
     def draw_player(self, xpos, ysign, bottomy, color):
         self.inf.vdraw.set_color(color)
@@ -438,6 +508,8 @@ class State(infra.BaseHandler):
             for ball in self.balls:
                 self.inf.vdraw.circle(ball.pos.x, ball.pos.y, BALL_SZ / 2, BALL_COLOR)
         self.draw_scores()
+        if self.menu is not None:
+            self.menu.draw()
         self.disp.refresh()
 
 
@@ -477,25 +549,13 @@ class State(infra.BaseHandler):
             self.crash(1, ball)
 
     def paddle_hit(self, xdist, player, ball):
-        ball.v.y = -ball.v.y
+        ball.v.y = sign(-ball.v.y)
 
         # the furthers it is from the center of the paddle the more random the direction can get
         off_center = (xdist / PADDLE_H_WIDTH)
-        ball.v.x += (random.random()*2 - 1) * off_center
+        ball.v.x = 2 * off_center  # can be positive or negative
         ball.v.normalize(ball.base_speed)
         self.add_anim(AnimBallPaddle(ball.pos.copy(), PLAYER_COLOR[player]))
-
-    def step(self):
-        if not self.ball_paused:
-            for ball in self.balls:
-                self.ball_step(ball)
-        elif self.input_enabled:
-            self.ball_paused = self.joys.p1.x == 0 and self.joys.p2.x == 0
-
-        if self.input_enabled:
-            self.p1.step()
-            self.p2.step()
-
 
     def crash(self, player, ball):
         ball.remove = True
@@ -512,6 +572,19 @@ class State(infra.BaseHandler):
         self.ball_visible = False
         self.input_enabled = False
         self.reset_ball()
+
+    def step(self):
+        if not self.ball_paused:
+            for ball in self.balls:
+                self.ball_step(ball)
+        elif self.input_enabled and self.user_input_enabled:
+            self.ball_paused = self.joys.p1.x == 0 and self.joys.p2.x == 0
+
+        if self.input_enabled:
+            self.p1.step()
+            self.p2.step()
+
+
 
 
 

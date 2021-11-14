@@ -2,12 +2,10 @@
 
 text with background
 pong
-- randomize wall hit if it's too shallow
+
 - sounds
-  - per player
-- start menu
-- AI
-   - sim?
+
+- ai can miss
 
 - ball speed increases over time
-- hit momentum increases ball speed
+- hit momentum increases ball speed - add curve?
