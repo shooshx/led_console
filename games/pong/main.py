@@ -520,7 +520,7 @@ class State(infra.BaseHandler):
 
         self.run_anims()
         self.run_bonuses()
-        self.draw_player(self.p1.offset_x, 1, self.disp.height - 1, PLAYER_1_COLOR)
+        self.draw_player(self.p1.offset_x, 1, self.disp.height, PLAYER_1_COLOR)
         self.draw_player(self.p2.offset_x, -1, 0, PLAYER_2_COLOR)
         # draw ball
         if self.ball_visible:

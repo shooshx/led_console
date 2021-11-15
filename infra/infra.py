@@ -263,8 +263,8 @@ class InfraSDL:
 
     def get_display(self, show_fps=False, with_vector=False):
         if self.display is None:
-            #self.display = DisplaySDL(show_fps)
-            self.display = DisplayNull(show_fps)
+            self.display = DisplaySDL(show_fps)
+            #self.display = DisplayNull(show_fps)
             self.draw = ShapeDraw(self.display)
             self.vdraw = VectorDraw(self.display) if with_vector else None
         return self.display
