@@ -82,6 +82,38 @@ class DisplaySDL:
         for i in range(0, 127):
             self.set_pixel(i, i, 0xff00ffff)
 
+
+class DisplayNull:
+    def __init__(self, show_fps=False):
+        self.pixels = infra_c.IntMatrix(DISP_WIDTH, DISP_HEIGHT)
+
+        self.width = DISP_WIDTH
+        self.height = DISP_HEIGHT
+        if show_fps:
+            self.fps = FpsShow()
+        else:
+            self.fps = NullFpsShow()
+
+    def resized(self, w, h):
+        self.scr_width = w
+        self.scr_height = h
+
+    def set_pixel(self, x, y, c):
+        self.pixels.set(x, y, c)
+
+    def destroy(self):
+        self.fps.stop()
+
+    def refresh(self):
+
+        self.fps.inc()
+
+    def test_pattern(self):
+        self.set_pixel(30, 30, 0xffffffff)
+        for i in range(0, 127):
+            self.set_pixel(i, i, 0xff00ffff)
+
+
 class BaseHandler:
     def ok_key_down_event(self, eventObj):
         return None
@@ -231,7 +263,8 @@ class InfraSDL:
 
     def get_display(self, show_fps=False, with_vector=False):
         if self.display is None:
-            self.display = DisplaySDL(show_fps)
+            #self.display = DisplaySDL(show_fps)
+            self.display = DisplayNull(show_fps)
             self.draw = ShapeDraw(self.display)
             self.vdraw = VectorDraw(self.display) if with_vector else None
         return self.display
