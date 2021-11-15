@@ -1,4 +1,4 @@
-import time, threading, os, math
+import time, threading, os, math, ctypes
 import sdl2.ext
 from sdl2 import *
 from sdl2.sdlmixer import *
@@ -35,6 +35,12 @@ class DisplaySDL:
         self.window = SDL_CreateWindow(b"title",
                                   SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                                   self.scr_width, self.scr_height, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE)
+        w = ctypes.c_int()
+        h = ctypes.c_int()
+        SDL_GetWindowSize(self.window, w, h)
+        self.scr_width = w
+        self.scr_height = h
+        print("Created window", w.value, h.value)
         self.surface = SDL_GetWindowSurface(self.window)
 
         self.pixels = infra_c.IntMatrix(DISP_WIDTH, DISP_HEIGHT)
