@@ -131,9 +131,7 @@ class AnimBallOut_Fail(Anim):
             self.color_f -= 0.1
 
             if self.color_f <= 0:
-                self.state.ball_paused = True
-                self.state.ball_visible = True
-                self.state.input_enabled = True
+                self.state.state_on_start()
                 return False
         return True
 
@@ -208,6 +206,9 @@ class AI:
             #print("player", self.p.player, "predict", self.dest_x_offset)
             if self.dest_x_offset is None:  # nothing to do
                 self.dest_x_offset = self.go_to_bonus()
+            # randomize the hit point so that not all hits are the same and add a chance of failure
+            if self.dest_x_offset is not None:
+                self.dest_x_offset += rand_unit() * PADDLE_H_WIDTH
 
         if self.dest_x_offset is None:
             return
@@ -310,12 +311,25 @@ def by_player_audio(pattern):
     assert os.path.exists(p1) and os.path.exists(p2), f"{p1},{p2}"
     return [None, infra.AudioChunk(p1), infra.AudioChunk(p2)]
 
+# left, right, group of sounds
+class AudioDualGroup:
+    def __init__(self, pattern, count):
+        self.d = [by_player_audio(pattern.replace('III', str(i))) for i in range(0, count)]
+    def play(self, player):
+        r = random.randrange(0, len(self.d))
+        self.d[r][player].play()
+
+
 class Resources:
     def __init__(self):
         self.balls_bonus_anim = infra.AnimSprite(os.path.join(this_path, "balls_anim3/all.png"))
         self.menu_girl = infra.Sprite(os.path.join(infra.imgs_path, "girl_user.png"))
         self.menu_robot = infra.Sprite(os.path.join(infra.imgs_path, "robot_user.png"))
+
         self.bonus_sound = by_player_audio(os.path.join(this_path, "audio/bonus_collect_PPP.ogg"))
+        self.pops = AudioDualGroup(os.path.join(this_path, f"audio/pop/_popIII_PPP.ogg"), 12)
+        self.hits = AudioDualGroup(os.path.join(this_path, f"audio/hit/_hitIII_PPP.ogg"), 5)
+        self.crashes = AudioDualGroup(os.path.join(this_path, f"audio/crash/_crashIII_PPP.ogg"), 7)
 
 PLID_AI = 0
 PLID_GIRL = 1
@@ -384,13 +398,18 @@ class State(infra.BaseHandler):
         self.p = [None, self.p1, self.p2]
         self.balls = []
         self.reset_ball()
-        self.ball_paused = not (p1_id == PLID_AI and p2_id == PLID_AI)  # waiting for any input at first, unless both are AI
-        self.ball_visible = True
-        self.input_enabled = True  # for both user and AI
-        self.user_input_enabled = True
+        self.state_on_start()
+
         self.anims = []
         self.bonuses = []
         self.bonus_last_create_time = g_now
+
+    def state_on_start(self):
+        # waiting for any input at first, unless both are AI
+        self.ball_paused = not (self.p1.plid == PLID_AI and self.p2.plid == PLID_AI)
+        self.ball_visible = True
+        self.input_enabled = True  # for both user and AI
+        self.user_input_enabled = True
 
     def add_anim(self, anim):
         anim.inf = self.inf
@@ -557,16 +576,20 @@ class State(infra.BaseHandler):
         ball.v.normalize(ball.base_speed)
         self.add_anim(AnimBallPaddle(ball.pos.copy(), PLAYER_COLOR[player]))
 
+        self.res.pops.play(player)
+
     def crash(self, player, ball):
         ball.remove = True
         self.balls = [b for b in self.balls if not b.remove]
         if len(self.balls) > 0:
+            self.res.hits.play(player)
             return
 
         if player == 1:
             self.p1.score += 1
         else:
             self.p2.score += 1
+        self.res.crashes.play(player)
         self.add_anim(AnimBallOut_Fail(ball.pos.copy(), self))
         self.ball_paused = True
         self.ball_visible = False

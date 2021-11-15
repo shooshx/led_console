@@ -3,9 +3,5 @@
 text with background
 pong
 
-- sounds
-
-- ai can miss
-
 - ball speed increases over time
 - hit momentum increases ball speed - add curve?

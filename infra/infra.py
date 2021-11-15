@@ -653,6 +653,8 @@ class AnimSprite:
 class AudioChunk:
     def __init__(self, filename):
         self.wav = Mix_LoadWAV(filename.encode('utf-8'))
+        assert self.wav.contents.alen > 0, "failed load " + filename + "  `" + Mix_GetError().decode('utf-8') + "`"
+        print("Loaded", filename)
 
     def play(self):
         Mix_PlayChannel(-1, self.wav, False)
