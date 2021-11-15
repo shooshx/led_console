@@ -1,5 +1,5 @@
 import threading, time, queue, array, os
-import PIL
+import PIL.Image
 
 from libc.string cimport memset
 from libc.stdint cimport uintptr_t
@@ -131,6 +131,24 @@ def call_poll_events():
     return lst
 
 
+
+cpdef mat_from_image(str filename):
+    cdef object img, img_data
+    cdef IntMatrix mat
+    cdef int i, r, g, b, a
+    cdef unsigned int col
+    img = PIL.Image.open(filename)
+    img_data = img.getdata()
+    mat = IntMatrix(img.width, img.height)
+    assert(img.mode == "RGBA")
+    i = 0
+    for b, g, r, a in img_data:
+        col = r | (g << 8) | (b << 16) | (a << 24)
+        mat.d[i] = col
+        i += 1
+    return mat
+
+
 cdef class IntMatrix:
     #cdef int w
     #cdef int h
@@ -145,6 +163,8 @@ cdef class IntMatrix:
         return self.w
     cpdef int height(self):
         return self.h
+    cpdef get_memview(self):
+        return memoryview(self.d_mem)
 
     cpdef reset(self):
         #self.MatType = ctypes.c_uint32 * (self.w * self.h)
@@ -156,7 +176,24 @@ cdef class IntMatrix:
         assert y >= 0 and y < self.h, f"width out of bounds {y}"
         self.d[y * self.w + x] = c
     cpdef mset(self, int x, int y, unsigned int c):
-        self.d[(y % self.h) * self.w + (x % self.w)] = c
+        self.d[(y % self.h) * self.w + (x % self.w)] = c  # TODO bitwise
+
+    cpdef madd_alpha(self, int x, int y, unsigned int c, float f):
+        cdef unsigned char* p
+        cdef float a, oma
+        cdef int r, g, b
+
+        a = (float(c >> 24) / 255.0) * f
+        r = int((c & 0xff) * a)
+        g = int(((c >> 8) & 0xff) * a)
+        b = int(((c >> 16) & 0xff) * a)
+        oma = 1.0 - a
+
+        p = <unsigned char*>&self.d[(y % self.h) * self.w + (x % self.w)]
+        p[0] = int(p[0] * oma) + r
+        p[1] = int(p[1] * oma) + g
+        p[2] = int(p[2] * oma) + b
+
 
     cpdef unsigned int get(self, int x, int y):
         return self.d[y * self.w + x]
@@ -197,13 +234,40 @@ cdef class IntMatrix:
             for x in range(0, mw):
                 self.set(dst_x + x, dst_y + y, src.get(x + src_x, y + src_y))
 
+    # for sprites
+    cpdef blit_from_sp(self, IntMatrix src, int src_x, int src_y, int dst_x, int dst_y, int mw, int mh, float f):
+        cdef int x, y
+        cdef unsigned int c
+
+        for y in range(0, mh):
+            for x in range(0, mw):
+                c = src.get(x + src_x, y + src_y)
+                #if c & 0xff000000 == 0:
+                #    self.mset(dst_x + x, dst_y + y, 0xffffffff)
+
+                self.madd_alpha(dst_x + x, dst_y + y, c, f)
+
     cpdef mblit_from(self, IntMatrix src, int src_x, int src_y, int dst_x, int dst_y, int mw, int mh):
         cdef int x, y
         for y in range(0, mh):
             for x in range(0, mw):
                 self.set(dst_x + x, dst_y + y, src.mget(x + src_x, y + src_y))
 
+    def rect_fill(self, int xstart, int ystart, int w, int h, unsigned int c):
+        cdef int xend, yend, yi, xi
+        xend = xstart + w
+        yend = ystart + h
+        for yi in range(ystart, yend):
+            for xi in range(xstart, xend):
+                self.set(xi, yi, c)
 
+    def rect_fill_a(self, int xstart, int ystart, int w, int h, unsigned int c):
+        cdef int xend, yend, yi, xi
+        xend = xstart + w
+        yend = ystart + h
+        for yi in range(ystart, yend):
+            for xi in range(xstart, xend):
+                self.madd_alpha(xi, yi, c, 1.0)
 
 # from Lib
 cdef float rgb_to_h(float r, float g, float b):
