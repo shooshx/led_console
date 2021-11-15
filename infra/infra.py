@@ -333,7 +333,8 @@ class InfraSDL:
         if wait > 0:
             time.sleep(wait)
         self.last_events_tick = ticks_now + wait
-        self.display.fps.rec_wait(wait)
+        if self.display is not None:
+            self.display.fps.rec_wait(wait)
 
         return True
 
