@@ -38,8 +38,8 @@ class DisplaySDL:
         w = ctypes.c_int()
         h = ctypes.c_int()
         SDL_GetWindowSize(self.window, w, h)
-        self.scr_width = w
-        self.scr_height = h
+        self.scr_width = w.value
+        self.scr_height = h.value
         print("Created window", w.value, h.value)
         self.surface = SDL_GetWindowSurface(self.window)
 
@@ -661,7 +661,7 @@ class AudioChunk:
     def __init__(self, filename):
         self.wav = Mix_LoadWAV(filename.encode('utf-8'))
         assert self.wav.contents.alen > 0, "failed load " + filename + "  `" + Mix_GetError().decode('utf-8') + "`"
-        print("Loaded", filename)
+        #print("Loaded", filename)
 
     def play(self):
         Mix_PlayChannel(-1, self.wav, False)
