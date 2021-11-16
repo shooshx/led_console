@@ -1,7 +1,12 @@
 
 
 text with background
+
 pong
 
 - ball speed increases over time
 - hit momentum increases ball speed - add curve?
+
+
+recorder
+- trim silence from start

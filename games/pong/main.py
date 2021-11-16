@@ -1,6 +1,7 @@
 import sys, os, random, math, time
+import cairo
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "infra"))
-import infra, cairo
+import infra
 
 this_path = os.path.dirname(os.path.abspath(__file__))
 
@@ -619,14 +620,11 @@ def main(argv):
     joys = inf.get_joystick_state()
 
     state = State(inf, disp, joys)
-    #inf.vdraw.ctx.scale(50,50)
-    #inf.vdraw.test_pattern2()
+
     disp.refresh()
 
     slow = False
     while True:
-        #if state.ball_pos.y < 10:
-        #    slow = True
         if slow:
             time.sleep(0.5)
         if not inf.handle_events(state):

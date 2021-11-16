@@ -15,6 +15,10 @@ speaker-test
 aplay -l
 arecord
 
+led matrix install:
+https://learn.adafruit.com/adafruit-rgb-matrix-bonnet-for-raspberry-pi/driving-matrices
+
+sudo ./demo -D3 --led-rows=32 --led-cols=32 --led-chain=2 --led-multiplexing=1 --led-brightness=50
 
 
 images:

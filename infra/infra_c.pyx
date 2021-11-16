@@ -207,6 +207,8 @@ cdef class IntMatrix:
         cdef int p, px, py, yi, xi
         cdef unsigned int* scr_ptr = <unsigned int*>scr_ptr_i
 
+        memset(scr_ptr, 0x20, scr_width*scr_height*4)
+
         if scr_width > scr_height:
             scale = scr_height // self.h
         else:

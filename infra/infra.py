@@ -4,6 +4,8 @@ from sdl2 import *
 from sdl2.sdlmixer import *
 import PIL.Image
 import cairo
+import scipy.io.wavfile
+import numpy as np
 
 import infra_c
 
@@ -12,6 +14,12 @@ DISP_HEIGHT = 128
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 imgs_path = os.path.join(this_dir, "imgs")
+
+COLOR_BLUE = 0x29ADFF
+COLOR_RED = 0xFF004D
+COLOR_YELLOW = 0xFFEC27
+COLOR_GREEN = 0x00E436
+BTN_COLORS = {'A':COLOR_BLUE, 'B':COLOR_RED, 'C':COLOR_YELLOW, 'D':COLOR_GREEN}
 
 def check(ret):
     if ret != 0:
@@ -115,7 +123,7 @@ class DisplayNull:
 
 
 class BaseHandler:
-    def ok_key_down_event(self, eventObj):
+    def on_key_down_event(self, eventObj):
         return None
     def on_joy_event(self, eventObj):
         return None
@@ -138,6 +146,9 @@ PLAYER_1 = 1
 PLAYER_2 = 2
 
 JOY_ANY_ARROW = [JOY_UP, JOY_DOWN, JOY_LEFT, JOY_RIGHT]
+JOY_ANY_LETTER = [JOY_BTN_A, JOY_BTN_B, JOY_BTN_C, JOY_BTN_D]
+
+
 
 class JoystickInf:
     def __init__(self, j, player, infra):
@@ -224,29 +235,49 @@ class JoystickInf:
 # target for when a joystick disconnects
 g_null_joystick = JoystickInf(None, 0, None)
 
-keyboard_joy = {SDLK_UP: (PLAYER_1, JOY_UP),
-                SDLK_LEFT: (PLAYER_1, JOY_LEFT),
-                SDLK_RIGHT: (PLAYER_1, JOY_RIGHT),
-                SDLK_DOWN: (PLAYER_1, JOY_DOWN),
-                ord(']'): (PLAYER_1, JOY_BTN_A),
-                ord('['): (PLAYER_1, JOY_BTN_B),
-                ord('p'): (PLAYER_1, JOY_BTN_C),
-                ord('o'): (PLAYER_1, JOY_BTN_D),
-                ord('i'): (PLAYER_1, JOY_BTN_ESC),
-                ord('u'): (PLAYER_1, JOY_BTN_START),
+class EvInf:
+    def __init__(self, pl, ev, up_ev=None):
+        self.pl = pl
+        self.ev = ev
+        self.up_ev = up_ev
 
-                ord('w'): (PLAYER_2, JOY_UP),
-                ord('a'): (PLAYER_2, JOY_LEFT),
-                ord('d'): (PLAYER_2, JOY_RIGHT),
-                ord('s'): (PLAYER_2, JOY_DOWN),
-                ord('z'): (PLAYER_2, JOY_BTN_A),
-                ord('x'): (PLAYER_2, JOY_BTN_B),
-                ord('c'): (PLAYER_2, JOY_BTN_C),
-                ord('v'): (PLAYER_2, JOY_BTN_D),
-                ord('b'): (PLAYER_2, JOY_BTN_ESC),
-                ord('n'): (PLAYER_2, JOY_BTN_START),
+keyboard_joy = {SDLK_UP: EvInf(PLAYER_1, JOY_UP, JOY_Y_CENTER),
+                SDLK_LEFT: EvInf(PLAYER_1, JOY_LEFT, JOY_X_CENTER),
+                SDLK_RIGHT: EvInf(PLAYER_1, JOY_RIGHT, JOY_X_CENTER),
+                SDLK_DOWN: EvInf(PLAYER_1, JOY_DOWN, JOY_Y_CENTER),
+                ord(']'): EvInf(PLAYER_1, JOY_BTN_A),
+                ord('['): EvInf(PLAYER_1, JOY_BTN_B),
+                ord('p'): EvInf(PLAYER_1, JOY_BTN_C),
+                ord('o'): EvInf(PLAYER_1, JOY_BTN_D),
+                ord('i'): EvInf(PLAYER_1, JOY_BTN_ESC),
+                ord('u'): EvInf(PLAYER_1, JOY_BTN_START),
+
+                ord('w'): EvInf(PLAYER_2, JOY_UP, JOY_Y_CENTER),
+                ord('a'): EvInf(PLAYER_2, JOY_LEFT, JOY_X_CENTER),
+                ord('d'): EvInf(PLAYER_2, JOY_RIGHT, JOY_X_CENTER),
+                ord('s'): EvInf(PLAYER_2, JOY_DOWN, JOY_Y_CENTER),
+                ord('z'): EvInf(PLAYER_2, JOY_BTN_A),
+                ord('x'): EvInf(PLAYER_2, JOY_BTN_B),
+                ord('c'): EvInf(PLAYER_2, JOY_BTN_C),
+                ord('v'): EvInf(PLAYER_2, JOY_BTN_D),
+                ord('b'): EvInf(PLAYER_2, JOY_BTN_ESC),
+                ord('n'): EvInf(PLAYER_2, JOY_BTN_START),
                 }
-NonePair = (None,None)
+
+# filers out repeat
+class KeyboardJoyAdapter:
+    def __init__(self):
+        self.down_keys = set()
+
+    def key_down(self, sym):
+        if sym in self.down_keys:  # filter repeat
+            return None
+        self.down_keys.add(sym)
+        return keyboard_joy.get(sym, None)
+
+    def key_up(self, sym):
+        self.down_keys.remove(sym)
+        return keyboard_joy.get(sym, None)
 
 class InfraSDL:
     def __init__(self):
@@ -257,6 +288,7 @@ class InfraSDL:
         self.last_events_tick = time.time()
         self.text = PicoFont()
         self.got_quit = False
+        self.key_joy = KeyboardJoyAdapter()
 
         self.init_joysticks()
         self.init_sound()
@@ -314,6 +346,15 @@ class InfraSDL:
         event.player = ji.player
         return handler.on_joy_event(event)
 
+    def do_joy_up_event(self, event, ev, up_ev, ji, handler):
+        if ev < JOY_BTN_A:
+            ji.got_axis_keyup(ev)
+        else:
+            ji.got_btn_up(ev)
+        event.event = up_ev
+        event.player = ji.player
+        handler.on_joy_event(event)
+
     def handle_events(self, handler):
         if self.got_quit:
             return False
@@ -350,14 +391,14 @@ class InfraSDL:
 
             elif event.type == SDL_KEYDOWN:
                 # needs to be first so that the menu handler can dismiss menu on esc
-                bret = handler.ok_key_down_event(event)
+                bret = handler.on_key_down_event(event)
                 if bret is not None:
                     return bret
 
-                pl, ev = keyboard_joy.get(event.sym, NonePair)
-                if pl is not None:
-                    ji = self.joy_by_player[pl]
-                    bret = self.do_joy_event(event, ev, ji, handler)
+                ev_inf = self.key_joy.key_down(event.sym)
+                if ev_inf is not None:
+                    ji = self.joy_by_player[ev_inf.pl]
+                    bret = self.do_joy_event(event, ev_inf.ev, ji, handler)
                     if bret is not None:
                         return bret
 
@@ -366,15 +407,11 @@ class InfraSDL:
                     if bret is not None:
                         return bret
 
-
             elif event.type == SDL_KEYUP:
-                pl, ev = keyboard_joy.get(event.sym, NonePair)
-                if pl is not None:
-                    ji = self.joy_by_player[pl]
-                    if ev < JOY_BTN_A:
-                        ji.got_axis_keyup(ev)
-                    else:
-                        ji.got_btn_up(ev)
+                ev_inf = self.key_joy.key_up(event.sym)
+                if ev_inf is not None:
+                    ji = self.joy_by_player[ev_inf.pl]
+                    self.do_joy_up_event(event, ev_inf.ev, ev_inf.up_ev, ji, handler)
 
             elif event.type == SDL_WINDOWEVENT:
                 if self.display is not None:
@@ -436,7 +473,7 @@ class MenuBase(BaseHandler):
                 self.selected += 1
         elif ev.event == JOY_BTN_A:
             return self.call_selected()
-    def ok_key_down_event(self, event):
+    def on_key_down_event(self, event):
         if event.sym == SDLK_RETURN:
             return self.call_selected()
         elif event.sym == SDLK_ESCAPE:
@@ -698,3 +735,56 @@ class AudioChunk:
 
     def play(self):
         Mix_PlayChannel(-1, self.wav, False)
+
+buffer_from_memory = ctypes.pythonapi.PyMemoryView_FromMemory
+buffer_from_memory.restype = ctypes.py_object
+PyBUF_READ = 0x100
+PyBUF_WRITE = 0x200
+
+
+# https://github.com/walshbp/pym/blob/9246bf7f222bb832ca8c03437475f2c733355452/examples/pym_sdl/pmSDL.py
+# https://fossies.org/linux/SDL2/test/testaudiocapture.c
+
+class AudioRecorder:
+    def __init__(self):
+        driver_name = SDL_GetCurrentAudioDriver()
+        print("driver:", driver_name.decode('utf-8'))
+        count = SDL_GetNumAudioDevices(True)
+        for i in range(0, count):
+            dev_name = SDL_GetAudioDeviceName(i, True)
+            print(i, dev_name.decode('utf-8'))
+        dev_name = None  # SDL_GetAudioDeviceName(2, True)
+
+        # in windows with sdl 2.0.16 dll it crashes with 1 channel
+        spec = SDL_AudioSpec(44100, AUDIO_F32, 1, 4096)
+
+        obtained = SDL_AudioSpec(0, 0, 0, 0)
+
+        self.devId = SDL_OpenAudioDevice(dev_name, True, spec, ctypes.byref(obtained), 0)
+        self.spec = spec  # must keep a reference to these otherwise it crashes
+        self.obtained = obtained
+        assert self.devId != 0
+
+
+    def start(self):
+        SDL_PauseAudioDevice(self.devId, False)
+
+    def stop(self, filepath):
+        SDL_PauseAudioDevice(self.devId, True)
+
+        sz = SDL_GetQueuedAudioSize(self.devId)
+        if sz == 0:
+            print("nothing recorded")
+            return
+
+        bbuf = ctypes.create_string_buffer(sz)
+        dsz = SDL_DequeueAudio(self.devId, bbuf, sz)
+        fbuf_both = np.frombuffer(bbuf, np.float32)
+
+        if self.spec.channels == 2:
+            fbuf = fbuf_both[0::2]
+        else:
+            fbuf = fbuf_both
+
+        scipy.io.wavfile.write(filepath, 44100, fbuf)
+        print("wrote", filepath, fbuf.shape)
