@@ -22,11 +22,6 @@ class Vec2f:
         dy = self.y - v.y
         return math.sqrt(dx*dx + dy*dy)
 
-def sign(v):
-    return 1 if v >= 0 else -1
-
-def rand_unit():
-    return random.random()*2 - 1
 
 # game hardness params
 PADDLE_MOVE = 1.5
@@ -209,7 +204,7 @@ class AI:
                 self.dest_x_offset = self.go_to_bonus()
             # randomize the hit point so that not all hits are the same and add a chance of failure
             if self.dest_x_offset is not None:
-                self.dest_x_offset += rand_unit() * PADDLE_H_WIDTH
+                self.dest_x_offset += infra.rand_unit() * PADDLE_H_WIDTH
 
         if self.dest_x_offset is None:
             return
@@ -233,7 +228,7 @@ class AI:
         min_steps = 9999
         min_s_pos = None
         for b in self.state.balls:
-            if sign(b.v.y) != to_me_sign:
+            if infra.sign(b.v.y) != to_me_sign:
                 continue
             pos, num_steps = self.predict_ball_hit(b.copy())
             if pos is None:
@@ -475,7 +470,7 @@ class State(infra.BaseHandler):
 
     def reset_ball(self):
         start_dir = 1 if random.random() > 0.5 else -1
-        start_sidev = rand_unit()
+        start_sidev = infra.rand_unit()
         ball = Ball(self.disp.width // 2, self.disp.height // 2, start_sidev, start_dir, BALL_START_SPEED)
         self.balls.append(ball)
 
@@ -484,8 +479,8 @@ class State(infra.BaseHandler):
         for ball in self.balls:
             for b in range(0, 2):
                 for i in range(0, 10):
-                    vx = rand_unit()
-                    vy = rand_unit()
+                    vx = infra.rand_unit()
+                    vy = infra.rand_unit()
                     # try again slope to not be too shallow
                     if abs(vx / vy) < MAX_BALL_SLOPE:
                         break
@@ -569,7 +564,7 @@ class State(infra.BaseHandler):
             self.crash(1, ball)
 
     def paddle_hit(self, xdist, player, ball):
-        ball.v.y = sign(-ball.v.y)
+        ball.v.y = infra.sign(-ball.v.y)
 
         # the furthers it is from the center of the paddle the more random the direction can get
         off_center = (xdist / PADDLE_H_WIDTH)
@@ -615,7 +610,7 @@ class State(infra.BaseHandler):
 def main(argv):
     global g_now
     g_now = time.time()
-    inf = infra.infra_init("sdl")
+    inf = infra.infra_init()
     disp = inf.get_display(show_fps=True, with_vector=True)
     joys = inf.get_joystick_state()
 

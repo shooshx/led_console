@@ -6,7 +6,7 @@ pong
 
 - ball speed increases over time
 - hit momentum increases ball speed - add curve?
-
+- add -g0 to gcc
 
 recorder
 - trim silence from start

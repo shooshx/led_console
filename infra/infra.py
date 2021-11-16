@@ -1,4 +1,4 @@
-import time, threading, os, math, ctypes
+import sys, time, threading, os, math, ctypes, random
 import sdl2.ext
 from sdl2 import *
 from sdl2.sdlmixer import *
@@ -21,6 +21,17 @@ COLOR_YELLOW = 0xFFEC27
 COLOR_GREEN = 0x00E436
 BTN_COLORS = {'A':COLOR_BLUE, 'B':COLOR_RED, 'C':COLOR_YELLOW, 'D':COLOR_GREEN}
 
+
+def color_hex2f(c):
+    b = (c & 0xff)/255
+    g = ((c >> 8) & 0xff)/255
+    r = ((c >> 16) & 0xff)/255
+    return r, g, b
+
+
+BTN_COLORS_F = {k: color_hex2f(v) for k, v in BTN_COLORS.items()}
+
+
 def check(ret):
     if ret != 0:
         print("Failed,", SDL_GetError())
@@ -34,6 +45,13 @@ class DictObj:
         self.__dict__[k] = v
     def p(self, pi):
         return self.__dict__[pi]
+
+def sign(v):
+    return 1 if v >= 0 else -1
+
+def rand_unit():
+    return random.random()*2 - 1
+
 
 
 class DisplaySDL:
@@ -279,8 +297,21 @@ class KeyboardJoyAdapter:
         self.down_keys.remove(sym)
         return keyboard_joy.get(sym, None)
 
+class Options:
+    def __init__(self):
+        self.disp_kind = "sdl"
+        self.disp_fps = False
+
+def parse_cmdline():
+    opt = Options()
+    if len(sys.argv) > 1:
+        opt.disp_kind = sys.argv[1]
+    return opt
+
+
 class InfraSDL:
     def __init__(self):
+        self.opt = parse_cmdline()
         SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_AUDIO)
         self.display = None
         self.joysticks = {}
@@ -295,8 +326,12 @@ class InfraSDL:
 
     def get_display(self, show_fps=False, with_vector=False):
         if self.display is None:
-            self.display = DisplaySDL(show_fps)
-            #self.display = DisplayNull(show_fps)
+            if self.opt.disp_kind == "sdl":
+                self.display = DisplaySDL(show_fps)
+            elif self.opt.disp_kind == "null":
+                self.display = DisplayNull(show_fps)
+            else:
+                raise Exception("Unknown display kind " + self.opt.disp_kind)
             self.draw = ShapeDraw(self.display)
             self.vdraw = VectorDraw(self.display) if with_vector else None
         return self.display
@@ -490,10 +525,8 @@ class MenuEsc(MenuBase):
 
 
 
-def infra_init(name):
-    if name == "sdl":
-        return InfraSDL()
-    raise Exception("unknown infra " + name)
+def infra_init():
+    return InfraSDL()
 
 TARGET_FPS = 60.0
 TARGET_FRAME_TIME = 1.0 / TARGET_FPS
@@ -741,12 +774,16 @@ buffer_from_memory.restype = ctypes.py_object
 PyBUF_READ = 0x100
 PyBUF_WRITE = 0x200
 
+ONLINE_BUF_SZ = 4096*4
+DISP_WAVE_WIDTH = 128
+SAMP_DISP_WIDTH = 32  # must divide by DISP_WAVE_WIDTH
 
 # https://github.com/walshbp/pym/blob/9246bf7f222bb832ca8c03437475f2c733355452/examples/pym_sdl/pmSDL.py
 # https://fossies.org/linux/SDL2/test/testaudiocapture.c
 
 class AudioRecorder:
     def __init__(self):
+
         driver_name = SDL_GetCurrentAudioDriver()
         print("driver:", driver_name.decode('utf-8'))
         count = SDL_GetNumAudioDevices(True)
@@ -765,6 +802,87 @@ class AudioRecorder:
         self.obtained = obtained
         assert self.devId != 0
 
+        self.thread = None
+        self.stop_thread = False
+        self.save_filepath = None
+
+        # online shape of the wave
+        self.disp_wave = None
+        self.dw_offset = 0
+        self.acc_disp_wave = None  # list of arrays
+
+        # a visual signature of the last recorded
+        self.did_save = False
+
+
+    def make_disp_wave(self, fbuf):
+        r = fbuf.reshape(DISP_WAVE_WIDTH, fbuf.shape[0] // DISP_WAVE_WIDTH)
+        self.disp_wave = np.average(r, axis=1)
+
+    def make_disp_wave2(self, fbuf):
+        r = fbuf.reshape(SAMP_DISP_WIDTH, fbuf.shape[0] // SAMP_DISP_WIDTH)
+        smin = np.min(r, axis=1)
+        smax = np.max(r, axis=1)
+        off = self.dw_offset
+        self.disp_wave[off:off + SAMP_DISP_WIDTH, 0] = smin
+        self.disp_wave[off:off + SAMP_DISP_WIDTH, 1] = smax
+        self.dw_offset = (off + SAMP_DISP_WIDTH) % DISP_WAVE_WIDTH
+
+        sboth = (np.min(fbuf), np.max(fbuf))
+        self.acc_disp_wave.append(sboth)
+
+
+    def data_thread(self):
+        self.disp_wave = np.zeros((DISP_WAVE_WIDTH, 2))
+        self.acc_disp_wave = []
+        buffers = []
+        bbuf = ctypes.create_string_buffer(ONLINE_BUF_SZ)
+        while not self.stop_thread:
+            dsz = SDL_DequeueAudio(self.devId, bbuf, ONLINE_BUF_SZ)
+            dsz_f = dsz//4
+            #print("got", dsz, dsz_f)
+            if dsz > 0:
+                fbuf_both = np.frombuffer(bbuf, np.float32, dsz_f)
+                if self.spec.channels == 2:
+                    fbuf = fbuf_both[0::2]
+                else:
+                    fbuf = fbuf_both
+                buffers.append(fbuf)
+                self.make_disp_wave2(fbuf)
+
+                # recreate for the next sample
+                bbuf = ctypes.create_string_buffer(ONLINE_BUF_SZ)
+
+            if dsz < ONLINE_BUF_SZ:
+                time.sleep(0.016)
+
+        if len(buffers) > 0:
+            total_buf = np.concatenate(buffers)
+            scipy.io.wavfile.write(self.save_filepath, 44100, total_buf)
+            print("wrote", self.save_filepath, total_buf.shape, len(buffers))
+            self.did_save = True
+        else:
+            print("no buffers to write")
+            self.did_save = False
+        self.disp_wave = None
+        self.acc_disp_wave = None
+
+    def start_online(self):
+        assert self.thread is None
+        SDL_PauseAudioDevice(self.devId, False)
+        self.stop_thread = False
+        self.did_save = False
+        self.thread = threading.Thread(target=self.data_thread)
+        self.thread.start()
+
+    def stop_online(self, filepath):
+        assert self.thread is not None
+        SDL_PauseAudioDevice(self.devId, True)
+        self.save_filepath = filepath
+        self.stop_thread = True
+        self.thread.join()
+        self.thread = None
+        return self.did_save
 
     def start(self):
         SDL_PauseAudioDevice(self.devId, False)

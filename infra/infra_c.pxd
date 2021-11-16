@@ -19,6 +19,8 @@ cdef class IntMatrix:
     cpdef blit_from(self, IntMatrix src, int src_x, int src_y, int dst_x, int dst_y, int mw, int mh)
     cpdef mblit_from(self, IntMatrix src, int src_x, int src_y, int dst_x, int dst_y, int mw, int mh)
     cpdef blit_from_sp(self, IntMatrix src, int src_x, int src_y, int dst_x, int dst_y, int mw, int mh, float f)
+    cpdef hline(self, int xstart, int xend, int y, unsigned int c) # inclusive
+    cpdef vline(self, int x, int ystart, int yend, unsigned int c)
 
     cpdef int width(self)
     cpdef int height(self)

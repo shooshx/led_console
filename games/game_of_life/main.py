@@ -58,7 +58,7 @@ class State(infra.BaseHandler):
 
 
 def main(argv):
-    inf = infra.infra_init("sdl")
+    inf = infra.infra_init()
     disp = inf.get_display(show_fps=True)
 
     disp.test_pattern()

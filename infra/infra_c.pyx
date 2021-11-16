@@ -271,6 +271,16 @@ cdef class IntMatrix:
             for xi in range(xstart, xend):
                 self.madd_alpha(xi, yi, c, 1.0)
 
+    cpdef hline(self, int xstart, int xend, int y, unsigned int c):
+        cdef int xi
+        for xi in range(xstart, xend+1):
+            self.set(xi, y, c)
+
+    cpdef vline(self, int x, int ystart, int yend, unsigned int c):
+        cdef int yi
+        for yi in range(ystart, yend+1):
+            self.set(x, yi, c)
+
 # from Lib
 cdef float rgb_to_h(float r, float g, float b):
     cdef float maxc, minc, v, s, rc, gc, bc, h
