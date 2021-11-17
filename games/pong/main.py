@@ -298,22 +298,6 @@ class Ball:
     def copy(self):
         return Ball(self.pos.x, self.pos.y, self.v.x, self.v.y, self.base_speed)
 
-P1_SIDE = "left"
-P2_SIDE = "right"
-
-def by_player_audio(pattern):
-    p1 = pattern.replace('PPP', P1_SIDE)
-    p2 = pattern.replace('PPP', P2_SIDE)
-    assert os.path.exists(p1) and os.path.exists(p2), f"{p1},{p2}"
-    return [None, infra.AudioChunk(p1), infra.AudioChunk(p2)]
-
-# left, right, group of sounds
-class AudioDualGroup:
-    def __init__(self, pattern, count):
-        self.d = [by_player_audio(pattern.replace('III', str(i))) for i in range(0, count)]
-    def play(self, player):
-        r = random.randrange(0, len(self.d))
-        self.d[r][player].play()
 
 
 class Resources:
@@ -322,10 +306,10 @@ class Resources:
         self.menu_girl = infra.Sprite(os.path.join(infra.imgs_path, "girl_user.png"))
         self.menu_robot = infra.Sprite(os.path.join(infra.imgs_path, "robot_user.png"))
 
-        self.bonus_sound = by_player_audio(os.path.join(this_path, "audio/bonus_collect_PPP.ogg"))
-        self.pops = AudioDualGroup(os.path.join(this_path, f"audio/pop/_popIII_PPP.ogg"), 12)
-        self.hits = AudioDualGroup(os.path.join(this_path, f"audio/hit/_hitIII_PPP.ogg"), 5)
-        self.crashes = AudioDualGroup(os.path.join(this_path, f"audio/crash/_crashIII_PPP.ogg"), 7)
+        self.bonus_sound = infra.by_player_audio(os.path.join(this_path, "audio/bonus_collect_PPP.ogg"))
+        self.pops = infra.AudioDualGroup(os.path.join(this_path, f"audio/pop/_popIII_PPP.ogg"), 12)
+        self.hits = infra.AudioDualGroup(os.path.join(this_path, f"audio/hit/_hitIII_PPP.ogg"), 5)
+        self.crashes = infra.AudioDualGroup(os.path.join(this_path, f"audio/crash/_crashIII_PPP.ogg"), 7)
 
 PLID_AI = 0
 PLID_GIRL = 1

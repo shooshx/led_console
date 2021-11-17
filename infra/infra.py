@@ -31,6 +31,13 @@ def color_hex2f(c):
 
 BTN_COLORS_F = {k: color_hex2f(v) for k, v in BTN_COLORS.items()}
 
+def color_f2hex(r, g, b):
+    return min(int(b * 255), 255) | (min(int(g * 255), 255) << 8) | (min(int(r * 255), 255) << 16)
+
+def color_mult(c, f):
+    r, g, b = color_hex2f(c)
+    return color_f2hex(r*f, g*f, b*f)
+
 
 def check(ret):
     if ret != 0:
@@ -644,7 +651,7 @@ class ShapeDraw:
     def rect_a(self, xstart, ystart, w, h, c):
         self.disp.pixels.rect_fill_a(xstart, ystart, w, h, c)
 
-    def round_rect(self, xleft, ytop, w, h, c):
+    def round_rect(self, xleft, ytop, w, h, c, thick_corner=False):
         ybot = ytop + h
         xright = xleft + w
         disp = self.disp
@@ -658,6 +665,16 @@ class ShapeDraw:
         disp.set_pixel(xleft + 1, ybot - 1, c)
         disp.set_pixel(xright - 1, ytop + 1, c)
         disp.set_pixel(xright - 1, ybot - 1, c)
+
+        if thick_corner:
+            disp.set_pixel(xleft + 1, ytop + 2, c)
+            disp.set_pixel(xleft + 2, ytop + 1, c)
+            disp.set_pixel(xleft + 2, ybot - 1, c)
+            disp.set_pixel(xleft + 1, ybot - 2, c)
+            disp.set_pixel(xright - 2, ytop + 1, c)
+            disp.set_pixel(xright - 1, ytop + 2, c)
+            disp.set_pixel(xright - 2, ybot - 1, c)
+            disp.set_pixel(xright - 1, ybot - 2, c)
 
 
 class VectorDraw:
@@ -728,6 +745,7 @@ class VectorDraw:
 
 
 
+
 class Sprite:
     def __init__(self, filename):
         self.img = infra_c.mat_from_image(filename)
@@ -759,22 +777,73 @@ class AnimSprite:
         self.at_frame = (self.at_frame + 1) % self.fnum
 
 
+P1_SIDE = "left"
+P2_SIDE = "right"
+
+def by_player_audio(pattern):
+    p1 = pattern.replace('PPP', P1_SIDE)
+    p2 = pattern.replace('PPP', P2_SIDE)
+    assert os.path.exists(p1) and os.path.exists(p2), f"{p1},{p2}"
+    return [None, AudioChunk(p1), AudioChunk(p2)]
+
+# left, right, group of sounds
+class AudioDualGroup:
+    def __init__(self, pattern, count):
+        self.d = [by_player_audio(pattern.replace('III', str(i))) for i in range(0, count)]
+    def play(self, player):
+        r = random.randrange(0, len(self.d))
+        self.d[r][player].play()
+
+
+buffer_from_memory = ctypes.pythonapi.PyMemoryView_FromMemory
+buffer_from_memory.restype = ctypes.py_object
+
+def sig_from_buf(chunk):
+    rwav = scipy.io.wavfile.read(chunk.filename)
+    fbuf = rwav[1]
+    rbuf = fbuf.reshape(fbuf.shape[0] // ONLINE_BUF_SZ_F, ONLINE_BUF_SZ_F)
+    smin = np.min(rbuf, axis=1)
+    smax = np.max(rbuf, axis=1)
+    sig = np.stack((smin, smax), axis=1)
+    return sig
+
 # https://lazyfoo.net/SDL_tutorials/lesson11/index.php
 class AudioChunk:
     def __init__(self, filename):
+        self.filename = filename
         self.wav = Mix_LoadWAV(filename.encode('utf-8'))
         assert self.wav.contents.alen > 0, "failed load " + filename + "  `" + Mix_GetError().decode('utf-8') + "`"
-        #print("Loaded", filename)
+
+        fmt = AUDIO_F32
+        chans = 2
+        freq = 44100
+        # bytes / samplesize == sample points
+        points = (self.wav.contents.alen / ((fmt & 0xFF) / 8))
+        # sample points / channels == sample frames
+        frames = (points / chans)
+        # (sample frames * 1000) / frequency == play length in s
+        self.time = frames / freq
+
+        self.count_playing = 0  # managed by MixTracker
 
     def play(self):
+        return Mix_PlayChannel(-1, self.wav, False)
+
+    def is_playing(self):
+        return self.count_playing > 0
+
+    def play_wait(self):
         Mix_PlayChannel(-1, self.wav, False)
+        time.sleep(self.time)
+
 
 buffer_from_memory = ctypes.pythonapi.PyMemoryView_FromMemory
 buffer_from_memory.restype = ctypes.py_object
 PyBUF_READ = 0x100
 PyBUF_WRITE = 0x200
 
-ONLINE_BUF_SZ = 4096*4
+ONLINE_BUF_SZ = 4096  # byfes, don't change this
+ONLINE_BUF_SZ_F = ONLINE_BUF_SZ // 4
 DISP_WAVE_WIDTH = 128
 SAMP_DISP_WIDTH = 32  # must divide by DISP_WAVE_WIDTH
 
@@ -782,7 +851,8 @@ SAMP_DISP_WIDTH = 32  # must divide by DISP_WAVE_WIDTH
 # https://fossies.org/linux/SDL2/test/testaudiocapture.c
 
 class AudioRecorder:
-    def __init__(self):
+    def __init__(self, start_q: AudioChunk):
+        self.start_q = start_q
 
         driver_name = SDL_GetCurrentAudioDriver()
         print("driver:", driver_name.decode('utf-8'))
@@ -809,11 +879,14 @@ class AudioRecorder:
         # online shape of the wave
         self.disp_wave = None
         self.dw_offset = 0
-        self.acc_disp_wave = None  # list of arrays
+        self.sig_disp_wave = None  # list of (min, max), one for each 1024 samples
 
         # a visual signature of the last recorded
         self.did_save = False
 
+    def close(self):
+        SDL_CloseAudioDevice(self.devId)
+        self.devId = None
 
     def make_disp_wave(self, fbuf):
         r = fbuf.reshape(DISP_WAVE_WIDTH, fbuf.shape[0] // DISP_WAVE_WIDTH)
@@ -829,12 +902,17 @@ class AudioRecorder:
         self.dw_offset = (off + SAMP_DISP_WIDTH) % DISP_WAVE_WIDTH
 
         sboth = (np.min(fbuf), np.max(fbuf))
-        self.acc_disp_wave.append(sboth)
+        self.sig_disp_wave.append(sboth)
 
 
     def data_thread(self):
+        if self.start_q is not None:
+            self.start_q.play_wait()
+
+        SDL_PauseAudioDevice(self.devId, False)
+
         self.disp_wave = np.zeros((DISP_WAVE_WIDTH, 2))
-        self.acc_disp_wave = []
+        self.sig_disp_wave = []
         buffers = []
         bbuf = ctypes.create_string_buffer(ONLINE_BUF_SZ)
         while not self.stop_thread:
@@ -856,6 +934,8 @@ class AudioRecorder:
             if dsz < ONLINE_BUF_SZ:
                 time.sleep(0.016)
 
+        SDL_PauseAudioDevice(self.devId, True)
+
         if len(buffers) > 0:
             total_buf = np.concatenate(buffers)
             scipy.io.wavfile.write(self.save_filepath, 44100, total_buf)
@@ -865,19 +945,18 @@ class AudioRecorder:
             print("no buffers to write")
             self.did_save = False
         self.disp_wave = None
-        self.acc_disp_wave = None
+        self.sig_disp_wave = None
 
     def start_online(self):
         assert self.thread is None
-        SDL_PauseAudioDevice(self.devId, False)
         self.stop_thread = False
         self.did_save = False
         self.thread = threading.Thread(target=self.data_thread)
         self.thread.start()
 
     def stop_online(self, filepath):
-        assert self.thread is not None
-        SDL_PauseAudioDevice(self.devId, True)
+        if self.thread is None:
+            return False
         self.save_filepath = filepath
         self.stop_thread = True
         self.thread.join()
@@ -906,3 +985,44 @@ class AudioRecorder:
 
         scipy.io.wavfile.write(filepath, 44100, fbuf)
         print("wrote", filepath, fbuf.shape)
+
+
+CHANNEL_COUNT = 8
+
+class MixTracker:
+    def __init__(self):
+        self.channels = [None] * CHANNEL_COUNT
+        self.call_eff = Mix_EffectFunc_t(self.effect_call)
+        self.call_done = Mix_EffectDone_t(self.channel_done)
+        self.call_fin = channel_finished(self.channel_fin)
+
+        Mix_ChannelFinished(self.call_fin)
+
+        #for i in range(0, CHANNEL_COUNT):
+
+        #    ret = Mix_RegisterEffect(i, self.call_eff, self.call_done, 0)
+        #    if ret == 0:
+        #        print(ret, Mix_GetError())
+
+    def play(self, chunk):
+        chan = chunk.play()
+        chunk.count_playing += 1
+        #Mix_RegisterEffect(chan, self.call_eff, self.call_done, 0)
+        print("play in chan", chan)
+        self.channels[chan] = chunk
+
+    def effect_call(self, chan, ptr, len, ud):
+        print("eff", chan)
+
+    def channel_done(self, chan, ptr):
+        print("done", chan)
+
+
+    def channel_fin(self, chan):
+        chunk = self.channels[chan]
+        chunk.count_playing -= 1
+        self.channels[chan] = None
+        print("fin", chan, chunk.count_playing)
+
+
+

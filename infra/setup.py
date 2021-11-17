@@ -21,7 +21,8 @@ setup(
 
 # sudo apt-get install -y build-essential tk-dev libncurses5-dev libncursesw5-dev libreadline6-dev libdb5.3-dev libgdbm-dev libsqlite3-dev libssl-dev libbz2-dev libexpat1-dev liblzma-dev zlib1g-dev libffi-dev
 
-# sudo apt-get install libsdl2-dev python3-dev libsdl2-mixer-2.0-0
+# sudo apt-get install libsdl2-dev python3-dev libsdl2-mixer-2.0-0 libatlas-base-dev
+#   libatlast for numpy
 # sudo pip3 install Pillow Cython pysdl2 pycairo scipy
 
 #  python3 setup.py build_ext --inplace
