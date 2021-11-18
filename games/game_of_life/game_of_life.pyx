@@ -1,4 +1,4 @@
-# cython: boundscheck=False, wraparound=False, initializedcheck=False, cdivision=True, always_allow_keywords=False
+# cython: boundscheck=False, wraparound=False, initializedcheck=False, always_allow_keywords=False
 
 import random, time
 import cython
@@ -45,16 +45,16 @@ cdef class GameOfLife:
 
     def put_pattern(self, list p, int x, int y, color):
         for i in range(0, len(p), 2):
-            self.board.c_mset(p[i] + x, p[i + 1] + y, color)
+            self.next.c_mset(p[i] + x, p[i + 1] + y, color)
 
     def pattern_board(self, str name, float n, int do_color):
         cdef int x, y, i
-        self.board.fill(0)
+        self.next.fill(0)
         if name == "random":
             for y in range(0, self.height):
                 for x in range(0, self.width):
                     if random.random() > n:
-                        self.board.c_set(x, y, rand_color() if do_color else 0xffffffff )
+                        self.next.c_set(x, y, rand_color() if do_color else 0xffffffff )
         elif name == "gliders":
             for i in range(0, int(n)):
                 p = GLIDER_RD if random.random() > 0.5 else GLIDER_LD
@@ -63,7 +63,7 @@ cdef class GameOfLife:
         else:
             color = rand_color() if do_color else 0xffffffff
             self.put_pattern(PATTERNS[name], 0, 0, color)
-
+        self.flip()
 
     cdef process(self, float fade):
         cdef int x, y, nei, off_i, xoff, yoff, c_alive
@@ -84,21 +84,18 @@ cdef class GameOfLife:
                     if cell_alive(nei_col):
                         nei += 1
                         new_col.add(nei_col)
-                        #print("~~", new_col.r, new_col.g, new_col.g)
 
                 keep_alive = (c_alive and (nei == 2 or nei == 3)) or ((not c_alive) and nei == 3)
                 if keep_alive:
                     new_col.div(nei)
-                    #print("~~~~~~", new_col.r, new_col.g, new_col.g, hex(new_col.as_uint()))
                     new_col.hsv_stretch()
 
-                    self.next.c_uset(x, y, new_col.as_uint() | 0xff000000)
+                    self.next.c_uset(x, y, new_col.as_uint() | 0x7f000000)
                 elif do_fade:
                     new_col.set(c)
                     new_col.mult(fade)
                     nc = new_col.as_uint() & 0xffffff
-                    #print("~~", hex(nc), fade)
-                    self.next.c_set(x, y, nc)
+                    self.next.c_uset(x, y, nc)
         #print("~~~~~~")
 
 
@@ -107,6 +104,9 @@ cdef class GameOfLife:
         #print("step:", self.step_count, now - self.last_time)
         self.last_time = now
         self.process(fade)
+        self.flip()
+
+    def flip(self):
         self.board, self.next = self.next, self.board
 
     def get(self, x, y):

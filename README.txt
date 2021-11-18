@@ -22,6 +22,8 @@ sudo ./demo -D3 --led-rows=32 --led-cols=32 --led-chain=2 --led-multiplexing=1 -
 
 sudo ./demo -D4 --led-rows=64 --led-cols=64 --led-chain=4 --led-multiplexing=1 --led-brightness=20 --led-slowdown-gpio=4
 
+sudo ./demo -D4 --led-rows=64 --led-cols=64 --led-chain=4 --led-multiplexing=1 --led-brightness=40 --led-slowdown-gpio=2 --led-show-refresh --led-limit-refresh 60
+
 
 images:
 https://loading.io/

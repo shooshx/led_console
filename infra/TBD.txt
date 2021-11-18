@@ -1,6 +1,5 @@
 
-- disable mat dependency for windows
-- solder raspberry hat
+- display class for matrices
 - cad model for perspecs top
 - tech schematic for box
 
@@ -10,10 +9,11 @@
 text with background
 
 pong
-
 - ball speed increases over time
 - hit momentum increases ball speed - add curve?
-- add -g0 to gcc
+
 
 recorder
 - trim silence from start
+
+plasma

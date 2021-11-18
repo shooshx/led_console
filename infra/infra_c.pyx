@@ -1,4 +1,4 @@
-# cython: boundscheck=False, wraparound=False, initializedcheck=False, cdivision=True, always_allow_keywords=False
+# cython: boundscheck=False, wraparound=False, initializedcheck=False, always_allow_keywords=False
 
 import threading, time, queue, array, os
 import PIL.Image

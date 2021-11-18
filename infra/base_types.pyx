@@ -185,7 +185,8 @@ cdef class IntMatrix:
         for yi in range(ystart, yend+1):
             self.c_set(x, yi, c)
 
-# from Lib
+# from Lib colorsys
+@cython.cdivision(False)
 cdef float rgb_to_h(float r, float g, float b):
     cdef float maxc, minc, v, s, rc, gc, bc, h
     maxc = max(r, g, b)
@@ -206,6 +207,7 @@ cdef float rgb_to_h(float r, float g, float b):
     h = (h/6.0) % 1.0
     return h
 
+# from Lib colorsys
 cdef (float, float, float) hsv_to_rgb(float h, float s, float v):
     cdef float f, p, q, t
     cdef int i
