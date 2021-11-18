@@ -50,6 +50,7 @@ class State(infra.BaseHandler):
                 self.game.pattern_board("random", 0.5, do_color=with_color)
             else:
                 self.game.pattern_board("gliders", 200, do_color=with_color)
+            self.copy_to_disp()
         if ev.event == infra.JOY_BTN_C and ev.player == infra.PLAYER_2:
             self.pause = not self.pause
         if ev.player == infra.PLAYER_1:

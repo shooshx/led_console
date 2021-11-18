@@ -3,6 +3,8 @@ from setuptools import Extension, setup
 from Cython.Build import cythonize
 import setup_helper
 
+this_dir = os.path.dirname(os.path.abspath(__file__))
+
 rpi_rgb_led_matrix_dir = "/home/pi/adafruit/rpi-rgb-led-matrix"
 
 libs = ["SDL2"]

@@ -3,7 +3,7 @@ import PIL.Image
 
 from libc.string cimport memset
 from libc.stdint cimport uintptr_t
-
+import cython
 
 
 cpdef mat_from_image(str filename):
@@ -66,8 +66,10 @@ cdef class IntMatrix:
     cpdef uset(self, int x, int y, unsigned int c):
         self.d[y * self.w + x] = c
 
+    @cython.cdivision(False)
     cdef c_mset(self, int x, int y, unsigned int c):
         self.d[(y % self.h) * self.w + (x % self.w)] = c  # TODO bitwise
+    @cython.cdivision(False)
     cpdef mset(self, int x, int y, unsigned int c):
         self.d[(y % self.h) * self.w + (x % self.w)] = c  # TODO bitwise
 
@@ -91,9 +93,11 @@ cdef class IntMatrix:
         return self.d[y * self.w + x]
     cpdef unsigned int get(self, int x, int y):
         return self.d[y * self.w + x]        
-      
+
+    @cython.cdivision(False) # this is needed for correct handling of negative offsets
     cdef unsigned int c_mget(self, int x, int y):
         return self.d[(y % self.h) * self.w + (x % self.w)]
+    @cython.cdivision(False)
     cpdef unsigned int mget(self, int x, int y):
         return self.d[(y % self.h) * self.w + (x % self.w)]
 
@@ -153,7 +157,7 @@ cdef class IntMatrix:
         cdef int x, y
         for y in range(0, mh):
             for x in range(0, mw):
-                self.c_set(dst_x + x, dst_y + y, src.mget(x + src_x, y + src_y))
+                self.c_set(dst_x + x, dst_y + y, src.c_mget(x + src_x, y + src_y))
 
     def rect_fill(self, int xstart, int ystart, int w, int h, unsigned int c):
         cdef int xend, yend, yi, xi

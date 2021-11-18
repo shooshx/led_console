@@ -5,6 +5,7 @@ import cython
 
 #cimport infra_c
 
+# this is done so that IntMatrix and Color could be inlined
 include "../../infra/base_types.pyx"
 
 
@@ -91,7 +92,7 @@ cdef class GameOfLife:
                     #print("~~~~~~", new_col.r, new_col.g, new_col.g, hex(new_col.as_uint()))
                     new_col.hsv_stretch()
 
-                    self.next.c_uset(x, y, new_col.as_uint() | 0x7f000000)
+                    self.next.c_uset(x, y, new_col.as_uint() | 0xff000000)
                 elif do_fade:
                     new_col.set(c)
                     new_col.mult(fade)
