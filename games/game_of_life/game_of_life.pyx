@@ -1,7 +1,11 @@
+# cython: boundscheck=False, wraparound=False, initializedcheck=False, cdivision=True, always_allow_keywords=False
+
 import random, time
+import cython
 
+#cimport infra_c
 
-cimport infra_c
+include "../../infra/base_types.pyx"
 
 
 cdef int[8*2] AROUND_OFFSETS = [-1,-1, 0,-1, 1,-1,
@@ -17,7 +21,7 @@ cdef dict PATTERNS = {
 
 cdef unsigned int rand_color():
     cdef float r,g,b
-    r,g,b = infra_c.hsv_to_rgb(random.random(), 1, 1)
+    r,g,b = hsv_to_rgb(random.random(), 1, 1)
     return int(r * 255) | (int(g * 255) << 8) | (int(b * 255) << 16) | 0xff000000
 
 cdef int cell_alive(unsigned int c):
@@ -26,21 +30,21 @@ cdef int cell_alive(unsigned int c):
     return (c & 0x7f000000) != 0
 
 cdef class GameOfLife:
-    cdef infra_c.IntMatrix board
-    cdef infra_c.IntMatrix next
+    cdef IntMatrix board
+    cdef IntMatrix next
     cdef int width, height
     cdef double last_time
 
     def __init__(self, w, h):
-        self.board = infra_c.IntMatrix(w, h)
-        self.next = infra_c.IntMatrix(w, h)
+        self.board = IntMatrix(w, h)
+        self.next = IntMatrix(w, h) 
         self.width = w
         self.height = h
         self.last_time = time.time()
 
     def put_pattern(self, list p, int x, int y, color):
         for i in range(0, len(p), 2):
-            self.board.mset(p[i] + x, p[i + 1] + y, color)
+            self.board.c_mset(p[i] + x, p[i + 1] + y, color)
 
     def pattern_board(self, str name, float n, int do_color):
         cdef int x, y, i
@@ -49,7 +53,7 @@ cdef class GameOfLife:
             for y in range(0, self.height):
                 for x in range(0, self.width):
                     if random.random() > n:
-                        self.board.set(x, y, rand_color() if do_color else 0xffffffff )
+                        self.board.c_set(x, y, rand_color() if do_color else 0xffffffff )
         elif name == "gliders":
             for i in range(0, int(n)):
                 p = GLIDER_RD if random.random() > 0.5 else GLIDER_LD
@@ -63,19 +67,19 @@ cdef class GameOfLife:
     cdef process(self, float fade):
         cdef int x, y, nei, off_i, xoff, yoff, c_alive
         cdef unsigned int nei_col, c, nc
-        cdef infra_c.Color new_col = infra_c.Color()
+        cdef Color new_col = Color()
         cdef int keep_alive, do_fade = fade != 0
         self.next.fill(0)
         for y in range(0, self.width):
             for x in range(0, self.height):
-                c = self.board.get(x, y)
+                c = self.board.c_get(x, y)
                 c_alive = cell_alive(c)
                 nei = 0
                 new_col.reset()
                 for off_i in range(0, 16, 2):
                     xoff = AROUND_OFFSETS[off_i]
                     yoff = AROUND_OFFSETS[off_i+1]
-                    nei_col = self.board.mget(x + xoff, y + yoff)
+                    nei_col = self.board.c_mget(x + xoff, y + yoff)
                     if cell_alive(nei_col):
                         nei += 1
                         new_col.add(nei_col)
@@ -87,13 +91,13 @@ cdef class GameOfLife:
                     #print("~~~~~~", new_col.r, new_col.g, new_col.g, hex(new_col.as_uint()))
                     new_col.hsv_stretch()
 
-                    self.next.set(x, y, new_col.as_uint() | 0xff000000)
+                    self.next.c_uset(x, y, new_col.as_uint() | 0x7f000000)
                 elif do_fade:
                     new_col.set(c)
                     new_col.mult(fade)
                     nc = new_col.as_uint() & 0xffffff
                     #print("~~", hex(nc), fade)
-                    self.next.set(x, y, nc)
+                    self.next.c_set(x, y, nc)
         #print("~~~~~~")
 
 
@@ -105,7 +109,7 @@ cdef class GameOfLife:
         self.board, self.next = self.next, self.board
 
     def get(self, x, y):
-        return self.board.get(x, y)
+        return self.board.c_get(x, y)
 
     def get_board(self):
         return self.board

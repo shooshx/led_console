@@ -1,6 +1,6 @@
 import sys, os, ctypes, random, threading, time
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "infra"))
-import infra
+import infra, infra_c
 
 import game_of_life
 
@@ -25,9 +25,12 @@ class State(infra.BaseHandler):
         self.fade = 0.0
 
         self.game = game_of_life.GameOfLife(BOARD_WIDTH, BOARD_HEIGHT)
+        gboard = self.game.get_board()
+        self.board_adapter = infra_c.IntMatrix(gboard.width(), gboard.height())
+        self.board_adapter.reset_raw_ptr(gboard.get_raw_ptr())
 
     def copy_to_disp(self):
-        self.disp.pixels.mblit_from(self.game.get_board(), self.offset_x, self.offset_y, 0, 0, self.disp.width, self.disp.height)
+        self.disp.pixels.mblit_from(self.board_adapter, self.offset_x, self.offset_y, 0, 0, self.disp.width, self.disp.height)
         self.disp.refresh()
 
     def step(self):

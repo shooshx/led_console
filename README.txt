@@ -20,6 +20,8 @@ https://learn.adafruit.com/adafruit-rgb-matrix-bonnet-for-raspberry-pi/driving-m
 
 sudo ./demo -D3 --led-rows=32 --led-cols=32 --led-chain=2 --led-multiplexing=1 --led-brightness=50
 
+sudo ./demo -D4 --led-rows=64 --led-cols=64 --led-chain=4 --led-multiplexing=1 --led-brightness=20 --led-slowdown-gpio=4
+
 
 images:
 https://loading.io/

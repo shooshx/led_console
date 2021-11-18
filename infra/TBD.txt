@@ -1,4 +1,11 @@
 
+- disable mat dependency for windows
+- solder raspberry hat
+- cad model for perspecs top
+- tech schematic for box
+
+
+
 
 text with background
 
