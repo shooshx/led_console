@@ -106,18 +106,20 @@ cdef class IntMatrix:
     cpdef fill(self, unsigned int v):
         memset(self.d_mem.data.as_voidptr, v, len(self.d_mem) * sizeof(int))
 
+    @cython.cdivision(True)
     def scale_to_screen(self, uintptr_t scr_ptr_i, int scr_width, int scr_height):
         cdef int scale, fill_width, sides_margin, side_margin, fill_height, top_margin
-        cdef int p, px, py, yi, xi
+        cdef int p, px, py, yi, xi, pix_next_line, pix_next_row, start_p
         cdef unsigned int c
         cdef unsigned int* scr_ptr = <unsigned int*>scr_ptr_i
 
-        memset(scr_ptr, 0x20, scr_width*scr_height*4)
+        # memset(scr_ptr, 0x20, scr_width*scr_height*4)
 
         if scr_width > scr_height:
             scale = scr_height // self.h
         else:
             scale = scr_width // self.w
+        #print("scale", scale)
         fill_width = self.w * scale
         sides_margin = (scr_width - fill_width)
         side_margin = (scr_width - fill_width) // 2
@@ -125,15 +127,20 @@ cdef class IntMatrix:
         top_margin = (scr_height - fill_height) // 2
 
         p = top_margin * scr_width + side_margin
+        pix_next_line = scr_width - scale
+        pix_next_row = scr_width * (scale-1) + sides_margin
 
         for py in range(0, self.h):
-            for yi in range(0, scale):
-                for px in range(0, self.w):
-                    c = self.d[py * self.w + px]
+            for px in range(0, self.w):
+                c = self.d[py * self.w + px]
+                start_p = p
+                for yi in range(0, scale):
                     for xi in range(0, scale):
                         scr_ptr[p] = c
                         p += 1
-                p += sides_margin
+                    p += pix_next_line
+                p = start_p + scale
+            p += pix_next_row
 
     cpdef blit_from(self, IntMatrix src, int src_x, int src_y, int dst_x, int dst_y, int mw, int mh):
         cdef int x, y

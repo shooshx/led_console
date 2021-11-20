@@ -1,12 +1,14 @@
 # cython: boundscheck=False, wraparound=False, initializedcheck=False, always_allow_keywords=False
 
+# https://cython.readthedocs.io/en/latest/src/userguide/source_files_and_compilation.html#compiler-directives
+
 import threading, time, queue, array, os, ctypes
 import PIL.Image
 
 from libc.string cimport memset
 from libc.stdint cimport uintptr_t
 
-
+import cython
 
 cdef extern from "SDL_events.h":
     ctypedef unsigned int Uint32
@@ -147,6 +149,7 @@ def call_poll_events():
 
 
 # same logic as scale_to_screen
+@cython.cdivision(True)
 def render_matrix(IntMatrix m, rend_ptr, int scr_width, int scr_height):
     cdef int scale, fill_width, side_margin, fill_height, top_margin
     cdef int px, py, r, g, b
@@ -160,9 +163,9 @@ def render_matrix(IntMatrix m, rend_ptr, int scr_width, int scr_height):
     else:
         scale = scr_width // m.w
     fill_width = m.w * scale
-    side_margin = (scr_width - fill_width) // 2
+    side_margin = int((scr_width - fill_width) / 2)
     fill_height = m.h * scale
-    top_margin = (scr_height - fill_height) // 2
+    top_margin = int((scr_height - fill_height) / 2)
 
     rect.w = scale
     rect.h = scale
