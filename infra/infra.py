@@ -126,10 +126,37 @@ class DisplaySDL(BaseDisplay):
 class DisplaySDL_Render(DisplaySDL):
     def __init__(self, show_fps=False):
         super().__init__(show_fps)
-        self.rend = SDL_CreateRenderer(self.window, -1, SDL_RENDERER_ACCELERATED)
+        SDL_SetHint(b"SDL_RENDER_SCALE_QUALITY", b"nearest");
+        self.rend = SDL_CreateRenderer(self.window, -1, 0) #SDL_RENDERER_ACCELERATED)
+        self.tex = SDL_CreateTexture(self.rend, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, DISP_WIDTH, DISP_HEIGHT)
+        self.rect = SDL_Rect()
+        self.calc_center()
+
+    def resized(self, w, h):
+        super().resized(w, h)
+        self.calc_center()
+
+    def calc_center(self):
+        if self.scr_width > self.scr_height:
+            scale = self.scr_height // DISP_HEIGHT
+        else:
+            scale = self.scr_width // DISP_WIDTH
+
+        fill_width = DISP_WIDTH * scale
+        side_margin = (self.scr_width - fill_width) // 2
+        fill_height = DISP_HEIGHT * scale
+        top_margin = (self.scr_height - fill_height) // 2
+        self.rect.x = side_margin
+        self.rect.y = top_margin
+        self.rect.w = fill_width
+        self.rect.h = fill_height
+
 
     def refresh(self):
-        infra_c.render_matrix(self.pixels, self.rend, self.scr_width, self.scr_height)
+        #infra_c.render_matrix(self.pixels, self.rend, self.scr_width, self.scr_height)
+        SDL_UpdateTexture(self.tex, None, self.pixels.get_raw_ptr(), DISP_WIDTH*4)
+        SDL_RenderCopy(self.rend, self.tex, None, self.rect)
+
         SDL_RenderPresent(self.rend)
         self.fps.inc()
 
