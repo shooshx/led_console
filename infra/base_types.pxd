@@ -24,7 +24,7 @@ cdef class IntMatrix:
     cdef unsigned int c_mget(self, int x, int y)
     cpdef unsigned int mget(self, int x, int y)
     cpdef fill(self, unsigned int v)
-    cpdef scale_to_screen(self, uintptr_t scr_ptr, int scr_width, int scr_height)
+
     cpdef blit_from(self, IntMatrix src, int src_x, int src_y, int dst_x, int dst_y, int mw, int mh)
     cpdef mblit_from(self, IntMatrix src, int src_x, int src_y, int dst_x, int dst_y, int mw, int mh)
     cpdef blit_from_sp(self, IntMatrix src, int src_x, int src_y, int dst_x, int dst_y, int mw, int mh, float f)

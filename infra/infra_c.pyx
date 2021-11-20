@@ -1,6 +1,6 @@
 # cython: boundscheck=False, wraparound=False, initializedcheck=False, always_allow_keywords=False
 
-import threading, time, queue, array, os
+import threading, time, queue, array, os, ctypes
 import PIL.Image
 
 from libc.string cimport memset
@@ -69,9 +69,21 @@ cdef extern from "SDL_events.h":
         SDL_TextInputEvent text
         SDL_WindowEvent window
         SDL_JoyAxisEvent jaxis
-        SDL_JoyButtonEvent jbutton;
+        SDL_JoyButtonEvent jbutton
 
     int SDL_PollEvent(SDL_Event* event)
+
+cdef extern from "SDL_rect.h":
+    cdef struct SDL_Rect:
+        int x
+        int y
+        int w
+        int h
+
+cdef extern from "SDL_render.h":
+    ctypedef int SDL_Renderer
+    int SDL_SetRenderDrawColor(SDL_Renderer* renderer, Uint8 r, Uint8 g, Uint8 b, Uint8 a)
+    int SDL_RenderFillRect(SDL_Renderer* renderer, const SDL_Rect * rect)
 
 
 class CommonEvent:
@@ -132,6 +144,43 @@ def call_poll_events():
         lst.append(e)
 
     return lst
+
+
+# same logic as scale_to_screen
+def render_matrix(IntMatrix m, rend_ptr, int scr_width, int scr_height):
+    cdef int scale, fill_width, side_margin, fill_height, top_margin
+    cdef int px, py, r, g, b
+    cdef SDL_Rect rect
+    cdef SDL_Renderer* rend = <SDL_Renderer*><uintptr_t>ctypes.addressof(rend_ptr.contents)
+
+    # memset(scr_ptr, 0x20, scr_width*scr_height*4)
+
+    if scr_width > scr_height:
+        scale = scr_height // m.h
+    else:
+        scale = scr_width // m.w
+    fill_width = m.w * scale
+    side_margin = (scr_width - fill_width) // 2
+    fill_height = m.h * scale
+    top_margin = (scr_height - fill_height) // 2
+
+    rect.w = scale
+    rect.h = scale
+    rect.y = top_margin
+
+    for py in range(0, m.h):
+        rect.y += scale
+        rect.x = side_margin
+        for px in range(0, m.w):
+            c = m.d[py * m.w + px]
+            b = c & 0xff
+            g = (c >> 8) & 0xff
+            r = (c >> 16) & 0xff
+            SDL_SetRenderDrawColor(rend, r, g, b, 255)
+            rect.x += scale
+
+            SDL_RenderFillRect(rend, &rect);
+
 
 
 include "base_types.pyx"

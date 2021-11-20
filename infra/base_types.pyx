@@ -106,9 +106,10 @@ cdef class IntMatrix:
     cpdef fill(self, unsigned int v):
         memset(self.d_mem.data.as_voidptr, v, len(self.d_mem) * sizeof(int))
 
-    cpdef scale_to_screen(self, uintptr_t scr_ptr_i, int scr_width, int scr_height):
+    def scale_to_screen(self, uintptr_t scr_ptr_i, int scr_width, int scr_height):
         cdef int scale, fill_width, sides_margin, side_margin, fill_height, top_margin
         cdef int p, px, py, yi, xi
+        cdef unsigned int c
         cdef unsigned int* scr_ptr = <unsigned int*>scr_ptr_i
 
         memset(scr_ptr, 0x20, scr_width*scr_height*4)

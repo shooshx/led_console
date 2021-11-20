@@ -122,6 +122,17 @@ class DisplaySDL(BaseDisplay):
         self.fps.inc()
 
 
+
+class DisplaySDL_Render(DisplaySDL):
+    def __init__(self, show_fps=False):
+        super().__init__(show_fps)
+        self.rend = SDL_CreateRenderer(self.window, -1, SDL_RENDERER_ACCELERATED)
+
+    def refresh(self):
+        infra_c.render_matrix(self.pixels, self.rend, self.scr_width, self.scr_height)
+        SDL_RenderPresent(self.rend)
+        self.fps.inc()
+
 class DisplayNull(BaseDisplay):
     def refresh(self):
         self.fps.inc()
@@ -289,8 +300,9 @@ class KeyboardJoyAdapter:
 
 def parse_cmdline():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--show-fps", action="store_true", help="Show FPS")
-    parser.add_argument("--disp", action="store", type=str, default="sdl", choices=['sdl', 'null', 'matrix'])
+    parser.add_argument("--no-show-fps", dest="show_fps", action="store_false", help="Show FPS")
+    parser.add_argument("--disp", action="store", type=str, default="sdl", choices=['sdl', 'sdlr', 'null', 'matrix'])
+    parser.set_defaults(show_fps=True)
     opt = parser.parse_known_args()[0]
     return opt
 
@@ -313,6 +325,8 @@ class InfraSDL:
         if self.display is None:
             if self.opt.disp == "sdl":
                 self.display = DisplaySDL(self.opt.show_fps)
+            elif self.opt.disp == "sdlr":
+                self.display = DisplaySDL_Render(self.opt.show_fps)
             elif self.opt.disp == "null":
                 self.display = DisplayNull(self.opt.show_fps)
             elif self.opt.disp == "matrix":
@@ -413,12 +427,12 @@ class InfraSDL:
                 ji.got_btn_up(JOY_BTN_A + event.button)
 
             elif event.type == SDL_KEYDOWN:
+                ev_inf = self.key_joy.key_down(event.sym)
                 # needs to be first so that the menu handler can dismiss menu on esc
                 bret = handler.on_key_down_event(event)
                 if bret is not None:
                     return bret
 
-                ev_inf = self.key_joy.key_down(event.sym)
                 if ev_inf is not None:
                     ji = self.joy_by_player[ev_inf.pl]
                     bret = self.do_joy_event(event, ev_inf.ev, ji, handler)
