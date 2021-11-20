@@ -41,3 +41,6 @@ https://www.epidemicsound.com/
 
 G4F SFX05
 Gamemaster Audio - Retro 8Bit Sounds
+
+opencl:
+https://qengineering.eu/install-opencl-on-raspberry-pi-3.html

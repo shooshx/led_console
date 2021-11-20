@@ -42,7 +42,8 @@ def color_mult(c, f):
 
 def check(ret):
     if ret != 0:
-        print("Failed,", SDL_GetError())
+        raise Exception("Failed,", SDL_GetError())
+        
 
 class DictObj:
     def __init__(self, *pargs, **kwargs):
@@ -81,12 +82,11 @@ class BaseDisplay:
             self.pixels.set(i, i, 0xff00ffff)
 
     def destroy(self):
-        self.fps.stop()            
+        self.fps.stop()      
 
-class DisplaySDL(BaseDisplay):
+class DisplayBaseSDL(BaseDisplay):
     def __init__(self, show_fps=False):
-        super().__init__(show_fps)
-
+        super().__init__(show_fps)          
         self.scr_width = 650
         self.scr_height = 540
         self.window = SDL_CreateWindow(b"title",
@@ -98,18 +98,28 @@ class DisplaySDL(BaseDisplay):
         self.scr_width = w.value
         self.scr_height = h.value
         print("Created window", w.value, h.value)
-        self.surface = SDL_GetWindowSurface(self.window)
 
     def resized(self, w, h):
-        self.surface = SDL_GetWindowSurface(self.window)
         self.scr_width = w
         self.scr_height = h
 
     def destroy(self):
         SDL_DestroyWindow(self.window)
         self.window = None
-        self.surface = None
         super().destroy()
+
+
+class DisplaySDL(DisplayBaseSDL):
+    def __init__(self, show_fps=False):
+        super().__init__(show_fps)
+        self.surface = SDL_GetWindowSurface(self.window)
+
+    def resized(self, w, h):
+        super().resized()
+        self.surface = SDL_GetWindowSurface(self.window)
+
+    def destroy(self):
+        self.surface = None
 
     def refresh(self):
         check(SDL_LockSurface(self.surface))
@@ -123,14 +133,18 @@ class DisplaySDL(BaseDisplay):
 
 
 
-class DisplaySDL_Render(DisplaySDL):
+class DisplaySDL_Render(DisplayBaseSDL):
     def __init__(self, show_fps=False):
         super().__init__(show_fps)
         SDL_SetHint(b"SDL_RENDER_SCALE_QUALITY", b"nearest");
-        self.rend = SDL_CreateRenderer(self.window, -1, 0) #SDL_RENDERER_ACCELERATED)
+        self.rend = SDL_CreateRenderer(self.window, -1, 0) #SDL_RENDERER_ACCELERATED) SDL_RENDERER_PRESENTVSYNC
+        print("renderer:", SDL_GetError())
         self.tex = SDL_CreateTexture(self.rend, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, DISP_WIDTH, DISP_HEIGHT)
         self.rect = SDL_Rect()
         self.calc_center()
+        print("sdlr:", self.rend, self.tex, self.rect.w, self.rect.h)
+        check(SDL_RenderClear(self.rend))
+        print("ok?")
 
     def resized(self, w, h):
         super().resized(w, h)
@@ -154,8 +168,9 @@ class DisplaySDL_Render(DisplaySDL):
 
     def refresh(self):
         #infra_c.render_matrix(self.pixels, self.rend, self.scr_width, self.scr_height)
-        SDL_UpdateTexture(self.tex, None, self.pixels.get_raw_ptr(), DISP_WIDTH*4)
-        SDL_RenderCopy(self.rend, self.tex, None, self.rect)
+        check(SDL_RenderClear(self.rend))
+        check(SDL_UpdateTexture(self.tex, None, self.pixels.get_raw_ptr(), DISP_WIDTH*4))
+        check(SDL_RenderCopy(self.rend, self.tex, None, self.rect))
 
         SDL_RenderPresent(self.rend)
         self.fps.inc()
