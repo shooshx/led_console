@@ -2,6 +2,12 @@
 pip install PySDL27
 pip install pysdl2-dll
 
+from: https://github.com/hzeller/rpi-rgb-led-matrix/
+  sudo apt-get remove bluez bluez-firmware pi-bluetooth triggerhappy pigpio
+
+sudo systemctl stop cron
+sudo systemctl stop nmbd
+sudo systemctl stop smbd
 
 Audio from USB:
 https://www.raspberrypi-spy.co.uk/2019/06/using-a-usb-audio-device-with-the-raspberry-pi/

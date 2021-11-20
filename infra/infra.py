@@ -1,4 +1,4 @@
-import sys, time, threading, os, math, ctypes, random
+import sys, time, threading, os, math, ctypes, random, argparse
 import sdl2.ext
 from sdl2 import *
 from sdl2.sdlmixer import *
@@ -8,6 +8,7 @@ import scipy.io.wavfile
 import numpy as np
 
 import infra_c
+
 
 DISP_WIDTH = 128
 DISP_HEIGHT = 128
@@ -60,9 +61,32 @@ def rand_unit():
     return random.random()*2 - 1
 
 
-
-class DisplaySDL:
+class BaseDisplay:
     def __init__(self, show_fps=False):
+        if show_fps:
+            self.fps = FpsShow()
+        else:
+            self.fps = NullFpsShow()
+
+        self.pixels = infra_c.IntMatrix(DISP_WIDTH, DISP_HEIGHT)
+        self.width = DISP_WIDTH
+        self.height = DISP_HEIGHT
+
+    def resized(self, w, h):
+        pass
+
+    def test_pattern(self):
+        self.pixels.set(30, 30, 0xffffffff)
+        for i in range(0, 127):
+            self.pixels.set(i, i, 0xff00ffff)
+
+    def destroy(self):
+        self.fps.stop()            
+
+class DisplaySDL(BaseDisplay):
+    def __init__(self, show_fps=False):
+        super().__init__(show_fps)
+
         self.scr_width = 650
         self.scr_height = 540
         self.window = SDL_CreateWindow(b"title",
@@ -76,29 +100,16 @@ class DisplaySDL:
         print("Created window", w.value, h.value)
         self.surface = SDL_GetWindowSurface(self.window)
 
-        self.pixels = infra_c.IntMatrix(DISP_WIDTH, DISP_HEIGHT)
-
-        self.width = DISP_WIDTH
-        self.height = DISP_HEIGHT
-        if show_fps:
-            self.fps = FpsShow()
-        else:
-            self.fps = NullFpsShow()
-
     def resized(self, w, h):
         self.surface = SDL_GetWindowSurface(self.window)
         self.scr_width = w
         self.scr_height = h
 
-    def set_pixel(self, x, y, c):
-        self.pixels.set(x, y, c)
-        #self.pixels[y][x] = c
-
     def destroy(self):
         SDL_DestroyWindow(self.window)
         self.window = None
         self.surface = None
-        self.fps.stop()
+        super().destroy()
 
     def refresh(self):
         check(SDL_LockSurface(self.surface))
@@ -110,41 +121,11 @@ class DisplaySDL:
         check(SDL_UpdateWindowSurface(self.window))
         self.fps.inc()
 
-    def test_pattern(self):
-        self.set_pixel(30, 30, 0xffffffff)
-        for i in range(0, 127):
-            self.set_pixel(i, i, 0xff00ffff)
 
-
-class DisplayNull:
-    def __init__(self, show_fps=False):
-        self.pixels = infra_c.IntMatrix(DISP_WIDTH, DISP_HEIGHT)
-
-        self.width = DISP_WIDTH
-        self.height = DISP_HEIGHT
-        if show_fps:
-            self.fps = FpsShow()
-        else:
-            self.fps = NullFpsShow()
-
-    def resized(self, w, h):
-        self.scr_width = w
-        self.scr_height = h
-
-    def set_pixel(self, x, y, c):
-        self.pixels.set(x, y, c)
-
-    def destroy(self):
-        self.fps.stop()
-
+class DisplayNull(BaseDisplay):
     def refresh(self):
-
         self.fps.inc()
 
-    def test_pattern(self):
-        self.set_pixel(30, 30, 0xffffffff)
-        for i in range(0, 127):
-            self.set_pixel(i, i, 0xff00ffff)
 
 
 class BaseHandler:
@@ -304,17 +285,14 @@ class KeyboardJoyAdapter:
         self.down_keys.remove(sym)
         return keyboard_joy.get(sym, None)
 
-class Options:
-    def __init__(self):
-        self.disp_kind = "sdl"
-        self.disp_fps = False
+
 
 def parse_cmdline():
-    opt = Options()
-    if len(sys.argv) > 1:
-        opt.disp_kind = sys.argv[1]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--show-fps", action="store_true", help="Show FPS")
+    parser.add_argument("--disp", action="store", type=str, default="sdl", choices=['sdl', 'null', 'matrix'])
+    opt = parser.parse_known_args()[0]
     return opt
-
 
 class InfraSDL:
     def __init__(self):
@@ -331,14 +309,17 @@ class InfraSDL:
         self.init_joysticks()
         self.init_sound()
 
-    def get_display(self, show_fps=False, with_vector=False):
+    def get_display(self, with_vector=False):
         if self.display is None:
-            if self.opt.disp_kind == "sdl":
-                self.display = DisplaySDL(show_fps)
-            elif self.opt.disp_kind == "null":
-                self.display = DisplayNull(show_fps)
+            if self.opt.disp == "sdl":
+                self.display = DisplaySDL(self.opt.show_fps)
+            elif self.opt.disp == "null":
+                self.display = DisplayNull(self.opt.show_fps)
+            elif self.opt.disp == "matrix":
+                import disp_rgbmatrix
+                self.display = disp_rgbmatrix.DisplayMatrix(self.opt.show_fps)
             else:
-                raise Exception("Unknown display kind " + self.opt.disp_kind)
+                raise Exception("Unknown display kind " + self.opt.disp)
             self.draw = ShapeDraw(self.display)
             self.vdraw = VectorDraw(self.display) if with_vector else None
         return self.display
@@ -638,12 +619,13 @@ class ShapeDraw:
         ybot = yend - 2
         xleft = xstart + 1
         xright = xend - 2
+        disp = self.disp.pixels
         for xi in range(xleft, xright+1):
-            self.disp.set_pixel(xi, ytop, 0xffffff)
-            self.disp.set_pixel(xi, ybot, 0xffffff)
+            disp.set(xi, ytop, 0xffffff)
+            disp.set(xi, ybot, 0xffffff)
         for yi in range(ytop, ybot+1):
-            self.disp.set_pixel(xleft, yi, 0xffffff)
-            self.disp.set_pixel(xright, yi, 0xffffff)
+            disp.set(xleft, yi, 0xffffff)
+            disp.set(xright, yi, 0xffffff)
 
     def rect(self, xstart, ystart, w, h, c):
         self.disp.pixels.rect_fill(xstart, ystart, w, h, c)
@@ -654,27 +636,27 @@ class ShapeDraw:
     def round_rect(self, xleft, ytop, w, h, c, thick_corner=False):
         ybot = ytop + h
         xright = xleft + w
-        disp = self.disp
+        disp = self.disp.pixels
         for xi in range(xleft + 2, xright - 1):
-            disp.set_pixel(xi, ytop, c)
-            disp.set_pixel(xi, ybot, c)
+            disp.set(xi, ytop, c)
+            disp.set(xi, ybot, c)
         for yi in range(ytop + 2, ybot - 1):
-            disp.set_pixel(xleft, yi, c)
-            disp.set_pixel(xright, yi, c)
-        disp.set_pixel(xleft + 1, ytop + 1, c)
-        disp.set_pixel(xleft + 1, ybot - 1, c)
-        disp.set_pixel(xright - 1, ytop + 1, c)
-        disp.set_pixel(xright - 1, ybot - 1, c)
+            disp.set(xleft, yi, c)
+            disp.set(xright, yi, c)
+        disp.set(xleft + 1, ytop + 1, c)
+        disp.set(xleft + 1, ybot - 1, c)
+        disp.set(xright - 1, ytop + 1, c)
+        disp.set(xright - 1, ybot - 1, c)
 
         if thick_corner:
-            disp.set_pixel(xleft + 1, ytop + 2, c)
-            disp.set_pixel(xleft + 2, ytop + 1, c)
-            disp.set_pixel(xleft + 2, ybot - 1, c)
-            disp.set_pixel(xleft + 1, ybot - 2, c)
-            disp.set_pixel(xright - 2, ytop + 1, c)
-            disp.set_pixel(xright - 1, ytop + 2, c)
-            disp.set_pixel(xright - 2, ybot - 1, c)
-            disp.set_pixel(xright - 1, ybot - 2, c)
+            disp.set(xleft + 1, ytop + 2, c)
+            disp.set(xleft + 2, ytop + 1, c)
+            disp.set(xleft + 2, ybot - 1, c)
+            disp.set(xleft + 1, ybot - 2, c)
+            disp.set(xright - 2, ytop + 1, c)
+            disp.set(xright - 1, ytop + 2, c)
+            disp.set(xright - 2, ybot - 1, c)
+            disp.set(xright - 1, ybot - 2, c)
 
 
 class VectorDraw:

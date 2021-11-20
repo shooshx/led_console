@@ -222,7 +222,7 @@ class State(infra.BaseHandler):
 
 def main(argv):
     inf = infra.infra_init()
-    disp = inf.get_display(show_fps=False, with_vector=True)
+    disp = inf.get_display(with_vector=True)
 
     state = State(inf, disp)
 

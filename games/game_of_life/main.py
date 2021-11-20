@@ -48,6 +48,7 @@ class State(infra.BaseHandler):
         #    print("offsets:", self.offset_x, self.offset_y)
 
     def on_joy_event(self, ev):
+        print("joy-event", ev.player, ev.event)
         with_color = self.joys.p(ev.player).btn_B
         if ev.event == infra.JOY_BTN_A:
             if ev.player == infra.PLAYER_1:
@@ -70,7 +71,7 @@ class State(infra.BaseHandler):
 
 def main(argv):
     inf = infra.infra_init()
-    disp = inf.get_display(show_fps=True)
+    disp = inf.get_display()
 
     disp.test_pattern()
     disp.refresh()

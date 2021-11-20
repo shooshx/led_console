@@ -128,6 +128,19 @@ cdef class RGBMatrixOptions:
         self.__options = cppinc.Options()
         self.__runtime_options = cppinc.RuntimeOptions()
 
+    def print_all(self):
+        print("rows:", self.__options.rows)
+        print("cols:", self.__options.cols)
+        print("chain_length:", self.__options.chain_length)
+        print("parallel:", self.__options.parallel)
+        print("brightness:", self.__options.brightness)
+        print("multiplexing:", self.__options.multiplexing)
+        print("disable_hardware_pulsing:", self.__options.disable_hardware_pulsing)
+        print("cols:", self.__options.cols)
+        print("gpio_slowdown:", self.__runtime_options.gpio_slowdown)
+        print("drop_privileges:", self.__runtime_options.drop_privileges)
+
+
     # RGBMatrix::Options properties
     property hardware_mapping:
         def __get__(self): return self.__options.hardware_mapping
@@ -203,6 +216,10 @@ cdef class RGBMatrixOptions:
         def __get__(self): return self.__options.pwm_dither_bits
         def __set__(self, uint8_t value): self.__options.pwm_dither_bits = value
 
+    property limit_refresh_rate_hz:
+        def __get__(self): return self.__options.limit_refresh_rate_hz
+        def __set__(self, uint8_t value): self.__options.limit_refresh_rate_hz = value
+
 
     # RuntimeOptions properties
 
@@ -217,6 +234,8 @@ cdef class RGBMatrixOptions:
     property drop_privileges:
         def __get__(self): return self.__runtime_options.drop_privileges
         def __set__(self, uint8_t value): self.__runtime_options.drop_privileges = value
+
+        
 
 cdef class RGBMatrix(Canvas):
     def __cinit__(self, int rows = 0, int chains = 0, int parallel = 0,

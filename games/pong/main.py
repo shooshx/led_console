@@ -595,7 +595,7 @@ def main(argv):
     global g_now
     g_now = time.time()
     inf = infra.infra_init()
-    disp = inf.get_display(show_fps=True, with_vector=True)
+    disp = inf.get_display(with_vector=True)
     joys = inf.get_joystick_state()
 
     state = State(inf, disp, joys)
