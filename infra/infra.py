@@ -61,6 +61,31 @@ def sign(v):
 def rand_unit():
     return random.random()*2 - 1
 
+class Vec2i:
+    def __init__(self, x: float, y:float):
+        self.x = x
+        self.y = y
+
+    def copy(self):
+        return Vec2i(self.x, self.y)
+
+    def equals(self, v):
+        return self.x == v.x and self.y == v.y
+
+class Vec2f:
+    def __init__(self, x: float, y:float):
+        self.x = x
+        self.y = y
+    def normalize(self, abs_len):
+        l = math.sqrt(self.x*self.x + self.y*self.y)
+        self.x *= abs_len / l
+        self.y *= abs_len / l
+    def copy(self):
+        return Vec2f(self.x, self.y)
+    def dist(self, v):
+        dx = self.x - v.x
+        dy = self.y - v.y
+        return math.sqrt(dx*dx + dy*dy)
 
 class BaseDisplay:
     def __init__(self, show_fps=False):
@@ -115,7 +140,7 @@ class DisplaySDL(DisplayBaseSDL):
         self.surface = SDL_GetWindowSurface(self.window)
 
     def resized(self, w, h):
-        super().resized()
+        super().resized(w, h)
         self.surface = SDL_GetWindowSurface(self.window)
 
     def destroy(self):
@@ -335,22 +360,69 @@ class KeyboardJoyAdapter:
         return keyboard_joy.get(sym, None)
 
     def key_up(self, sym):
+        if sym not in self.down_keys:
+            return  # can happen when we just start and process the up key of start up
         self.down_keys.remove(sym)
         return keyboard_joy.get(sym, None)
 
+# add repeat for continuous joystick hold
+class JoyRepeatFilter:
+    def __init__(self):
+        self.last_times = { JOY_LEFT: None, JOY_RIGHT: None, JOY_UP: None, JOY_DOWN: None}
+
+    def _thresh_time(self, ev):
+        if ev is None:
+            return True
+        now = time.time()
+        if self.last_times[ev] is None:
+            self.last_times[ev] = now
+            return True
+        elapsed = now - self.last_times[ev]
+        #print("~~", elapsed)
+        if elapsed > 0.250:
+            self.last_times[ev] = now
+            return True
+        return False
+
+    # return True if event should be taken
+    def check(self, joy):
+        evx = None
+        if joy.x > 0:
+            evx = JOY_RIGHT
+        elif joy.x < 0:
+            evx = JOY_LEFT
+        else:  # reset
+            self.last_times[JOY_RIGHT] = None
+            self.last_times[JOY_LEFT] = None
+
+        evy = None
+        if joy.y > 0:
+            evy = JOY_DOWN
+        elif joy.y < 0:
+            evy = JOY_UP
+        else:
+            self.last_times[JOY_UP] = None
+            self.last_times[JOY_DOWN] = None
+
+        if evx is not None:
+            return self._thresh_time(evx)
+        if evy is not None:
+            return self._thresh_time(evy)
 
 
-def parse_cmdline():
+
+
+def parse_cmdline(args):
     parser = argparse.ArgumentParser()
     parser.add_argument("--no-show-fps", dest="show_fps", action="store_false", help="Show FPS")
     parser.add_argument("--disp", action="store", type=str, default="sdl", choices=['sdl', 'sdlr', 'null', 'matrix'])
     parser.set_defaults(show_fps=True)
-    opt = parser.parse_known_args()[0]
+    opt = parser.parse_known_args(args)[0]
     return opt
 
 class InfraSDL:
-    def __init__(self):
-        self.opt = parse_cmdline()
+    def __init__(self, args):
+        self.opt = parse_cmdline(args)
         SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_AUDIO)
         self.display = None
         self.joysticks = {}
@@ -363,7 +435,7 @@ class InfraSDL:
         self.init_joysticks()
         self.init_sound()
 
-    def get_display(self, with_vector=False):
+    def get_display(self):
         if self.display is None:
             if self.opt.disp == "sdl":
                 self.display = DisplaySDL(self.opt.show_fps)
@@ -377,7 +449,7 @@ class InfraSDL:
             else:
                 raise Exception("Unknown display kind " + self.opt.disp)
             self.draw = ShapeDraw(self.display)
-            self.vdraw = VectorDraw(self.display) if with_vector else None
+            self.vdraw = VectorDraw(self.display)
         return self.display
 
     def destroy(self):
@@ -568,9 +640,13 @@ class MenuEsc(MenuBase):
         return MENU_QUIT_APP
 
 
+g_inf = None
 
-def infra_init():
-    return InfraSDL()
+def infra_init(args = sys.argv):
+    global g_inf
+    if g_inf is None:
+        g_inf = InfraSDL(args)
+    return g_inf
 
 TARGET_FPS = 60.0
 TARGET_FRAME_TIME = 1.0 / TARGET_FPS
@@ -693,26 +769,25 @@ class ShapeDraw:
         ybot = ytop + h
         xright = xleft + w
         disp = self.disp.pixels
-        for xi in range(xleft + 2, xright - 1):
-            disp.set(xi, ytop, c)
-            disp.set(xi, ybot, c)
-        for yi in range(ytop + 2, ybot - 1):
-            disp.set(xleft, yi, c)
-            disp.set(xright, yi, c)
-        disp.set(xleft + 1, ytop + 1, c)
-        disp.set(xleft + 1, ybot - 1, c)
-        disp.set(xright - 1, ytop + 1, c)
-        disp.set(xright - 1, ybot - 1, c)
+        disp.ihline(xleft + 2, xright - 2, ytop, c)
+        disp.ihline(xleft + 2, xright - 2, ybot, c)
+        disp.ivline(xleft, ytop + 2, ybot - 2, c)
+        disp.ivline(xright, ytop + 2, ybot - 2, c)
+
+        disp.iset(xleft + 1, ytop + 1, c)
+        disp.iset(xleft + 1, ybot - 1, c)
+        disp.iset(xright - 1, ytop + 1, c)
+        disp.iset(xright - 1, ybot - 1, c)
 
         if thick_corner:
-            disp.set(xleft + 1, ytop + 2, c)
-            disp.set(xleft + 2, ytop + 1, c)
-            disp.set(xleft + 2, ybot - 1, c)
-            disp.set(xleft + 1, ybot - 2, c)
-            disp.set(xright - 2, ytop + 1, c)
-            disp.set(xright - 1, ytop + 2, c)
-            disp.set(xright - 2, ybot - 1, c)
-            disp.set(xright - 1, ybot - 2, c)
+            disp.iset(xleft + 1, ytop + 2, c)
+            disp.iset(xleft + 2, ytop + 1, c)
+            disp.iset(xleft + 2, ybot - 1, c)
+            disp.iset(xleft + 1, ybot - 2, c)
+            disp.iset(xright - 2, ytop + 1, c)
+            disp.iset(xright - 1, ytop + 2, c)
+            disp.iset(xright - 2, ybot - 1, c)
+            disp.iset(xright - 1, ybot - 2, c)
 
 
 class VectorDraw:

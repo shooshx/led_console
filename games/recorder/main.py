@@ -1,9 +1,11 @@
 import sys, os, math, random
-
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "infra"))
-import infra, cairo
+import cairo
 
 this_path = os.path.dirname(os.path.abspath(__file__))
+
+sys.path.append(os.path.join(this_path, "..", "..", "infra"))
+import infra
+
 
 class Resources:
     def __init__(self):
@@ -222,7 +224,7 @@ class State(infra.BaseHandler):
 
 def main(argv):
     inf = infra.infra_init()
-    disp = inf.get_display(with_vector=True)
+    disp = inf.get_display()
 
     state = State(inf, disp)
 

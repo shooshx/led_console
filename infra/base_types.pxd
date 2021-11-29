@@ -18,6 +18,9 @@ cdef class IntMatrix:
     cpdef uset(self, int x, int y, unsigned int c)
     cdef c_mset(self, int x, int y, unsigned int c)
     cpdef mset(self, int x, int y, unsigned int c)
+    cdef c_iset(self, int x, int y, unsigned int c)
+    cpdef iset(self, int x, int y, unsigned int c)
+
     cpdef madd_alpha(self, int x, int y, unsigned int c, float f)
     cdef unsigned int c_get(self, int x, int y)
     cpdef unsigned int get(self, int x, int y)
@@ -28,8 +31,11 @@ cdef class IntMatrix:
     cpdef blit_from(self, IntMatrix src, int src_x, int src_y, int dst_x, int dst_y, int mw, int mh)
     cpdef mblit_from(self, IntMatrix src, int src_x, int src_y, int dst_x, int dst_y, int mw, int mh)
     cpdef blit_from_sp(self, IntMatrix src, int src_x, int src_y, int dst_x, int dst_y, int mw, int mh, float f)
+
     cpdef hline(self, int xstart, int xend, int y, unsigned int c) # inclusive
     cpdef vline(self, int x, int ystart, int yend, unsigned int c)
+    cpdef ihline(self, int xstart, int xend, int y, unsigned int c)
+    cpdef ivline(self, int x, int ystart, int yend, unsigned int c)
 
     cpdef int width(self)
     cpdef int height(self)

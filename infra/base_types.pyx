@@ -73,6 +73,15 @@ cdef class IntMatrix:
     cpdef mset(self, int x, int y, unsigned int c):
         self.d[(y % self.h) * self.w + (x % self.w)] = c  # TODO bitwise
 
+    cdef c_iset(self, int x, int y, unsigned int c):
+        if x < 0 or x >= self.w or y < 0 or y >= self.h:
+            return
+        self.d[y * self.w + x] = c
+    cpdef iset(self, int x, int y, unsigned int c):
+        if x < 0 or x >= self.w or y < 0 or y >= self.h:
+            return
+        self.d[y * self.w + x] = c
+
     cpdef madd_alpha(self, int x, int y, unsigned int c, float f):
         cdef unsigned char* p
         cdef float a, oma
@@ -192,6 +201,16 @@ cdef class IntMatrix:
         cdef int yi
         for yi in range(ystart, yend+1):
             self.c_set(x, yi, c)
+
+    cpdef ihline(self, int xstart, int xend, int y, unsigned int c):
+        cdef int xi
+        for xi in range(xstart, xend+1):
+            self.c_iset(xi, y, c)
+
+    cpdef ivline(self, int x, int ystart, int yend, unsigned int c):
+        cdef int yi
+        for yi in range(ystart, yend+1):
+            self.c_iset(x, yi, c)
 
 # from Lib colorsys
 @cython.cdivision(False)

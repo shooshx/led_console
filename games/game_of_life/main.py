@@ -1,7 +1,7 @@
 import sys, os, ctypes, random, threading, time
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "infra"))
 import infra, infra_c
-
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import game_of_life
 
 # controls:
@@ -95,7 +95,6 @@ def main(argv):
             state.do_single_step = False
         #state.copy_to_disp()
 
-    inf.destroy()
     return 0
 
 

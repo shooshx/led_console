@@ -16,6 +16,10 @@ sudo nano /usr/share/alsa/alsa.conf
   defaults.ctl.card 1
   defaults.pcm.card 1
 
+
+change resolution:
+    sudo raspi-config
+
 alsamixer -c 1
 speaker-test
 aplay -l

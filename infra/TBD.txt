@@ -1,19 +1,21 @@
 
-- display class for matrices
-- cad model for perspecs top
+
 - tech schematic for box
 
+launcher
 
-
-
-text with background
+infra
+- text with background
 
 pong
 - ball speed increases over time
 - hit momentum increases ball speed - add curve?
-
+- paddle break?
 
 recorder
+- repeat!
 - trim silence from start
+
+tron
 
 plasma
