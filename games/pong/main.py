@@ -7,20 +7,7 @@ this_path = os.path.dirname(os.path.abspath(__file__))
 
 # P1 is at the bottom, P2 is at the top
 
-class Vec2f:
-    def __init__(self, x: float, y:float):
-        self.x = x
-        self.y = y
-    def normalize(self, abs_len):
-        l = math.sqrt(self.x*self.x + self.y*self.y)
-        self.x *= abs_len / l
-        self.y *= abs_len / l
-    def copy(self):
-        return Vec2f(self.x, self.y)
-    def dist(self, v):
-        dx = self.x - v.x
-        dy = self.y - v.y
-        return math.sqrt(dx*dx + dy*dy)
+
 
 
 # game hardness params
@@ -289,9 +276,9 @@ class Player:
 
 class Ball:
     def __init__(self, x, y, vx, vy, speed):
-        self.pos = Vec2f(x, y)
+        self.pos = infra.Vec2f(x, y)
         self.base_speed = speed
-        self.v = Vec2f(vx, vy)
+        self.v = infra.Vec2f(vx, vy)
         self.v.normalize(self.base_speed)
         self.remove = False
 
@@ -595,7 +582,7 @@ def main(argv):
     global g_now
     g_now = time.time()
     inf = infra.infra_init()
-    disp = inf.get_display(with_vector=True)
+    disp = inf.get_display()
     joys = inf.get_joystick_state()
 
     state = State(inf, disp, joys)
