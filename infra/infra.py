@@ -97,6 +97,7 @@ class BaseDisplay:
         self.pixels = infra_c.IntMatrix(DISP_WIDTH, DISP_HEIGHT)
         self.width = DISP_WIDTH
         self.height = DISP_HEIGHT
+        self.rotate = 0
 
     def resized(self, w, h):
         pass
@@ -107,7 +108,11 @@ class BaseDisplay:
             self.pixels.set(i, i, 0xff00ffff)
 
     def destroy(self):
-        self.fps.stop()      
+        self.fps.stop()
+
+    def set_rotate(self, r):
+        assert r >= 0 and r <= 3, "rotate out of range"
+        self.rotate = r * 90
 
 class DisplayBaseSDL(BaseDisplay):
     def __init__(self, show_fps=False):
@@ -203,8 +208,8 @@ class DisplaySDL_Render(DisplayBaseSDL):
         #infra_c.render_matrix(self.pixels, self.rend, self.scr_width, self.scr_height)
         check(SDL_RenderClear(self.rend))
         check(SDL_UpdateTexture(self.tex, None, self.pixels.get_raw_ptr(), DISP_WIDTH*4))
-        check(SDL_RenderCopy(self.rend, self.tex, None, self.rect))
-        #check(SDL_RenderCopyEx(self.rend, self.tex, None, self.rect, 90, None, False))
+        #check(SDL_RenderCopy(self.rend, self.tex, None, self.rect))
+        check(SDL_RenderCopyEx(self.rend, self.tex, None, self.rect, self.rotate, None, False))
 
         SDL_RenderPresent(self.rend)
         self.fps.inc()
@@ -871,6 +876,7 @@ class VectorDraw:
 
 class Sprite:
     def __init__(self, filename):
+        assert os.path.exists(filename), "no such file " + filename
         self.img = infra_c.mat_from_image(filename)
 
     def blit_to(self, to_mat, dst_x, dst_y):

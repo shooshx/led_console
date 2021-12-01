@@ -14,7 +14,7 @@ cpdef mat_from_image(str filename):
     img = PIL.Image.open(filename)
     img_data = img.getdata()
     mat = IntMatrix(img.width, img.height)
-    assert(img.mode == "RGBA")
+    assert img.mode == "RGBA", "unexpected img mode " + img.mode
     i = 0
     for b, g, r, a in img_data:
         col = r | (g << 8) | (b << 16) | (a << 24)

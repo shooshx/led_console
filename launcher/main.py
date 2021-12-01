@@ -1,4 +1,4 @@
-import sys, os, stat, glob, importlib.util, importlib
+import sys, os, stat, glob, importlib.util, importlib, subprocess
 
 this_path = os.path.dirname(os.path.abspath(__file__))
 
@@ -34,18 +34,33 @@ class PyApp(App):
         mod = import_file(self.main_mod_file)
         return mod.main
 
+PICO8_ICON_PATH = os.path.join(this_path, "..", "pico8", "icon.png")
+
+if sys.platform == "linux":
+    PICO8_EXE = os.path.join(this_path, "../pico8/pico-8/pico8_dyn")
+else:
+    PICO8_EXE = os.path.join(this_path, r"..\pico8\pico-8\pico-8_0.2.3_windows\pico-8\pico8.exe")
+
+def start_pico8(args):
+    cmd = [PICO8_EXE] + args
+    print(' '.join(cmd))
+    subprocess.call(cmd)
+
+
 class Pico8App(App):
     def __init__(self, cart_file, icon_file):
         super().__init__(icon_file)
-        self.main_func = None
         self.cart_file = cart_file
 
+    def start(self):
+        start_pico8(['-run', self.cart_file])
 
-PICO8_ICON_PATH = ""
 class Pico8SploreApp(App):
     def __init__(self):
         super().__init__(PICO8_ICON_PATH)
-        self.main_func = None
+
+    def start(self):
+        start_pico8(['-splore'])
 
 
 BUTTONS_IN_LINE = 4
@@ -70,11 +85,13 @@ class State(infra.BaseHandler):
                 mainpy = os.path.join(path, "main.py")
                 if os.path.exists(mainpy):
                     self.apps.append(PyApp(mainpy, os.path.join(path, "icon.png")))
-        picos = os.path.join(games, "pico8")
+
+        self.apps.append(Pico8SploreApp())
+        picos = os.path.join(this_path, "..", "pico8", "games")
         for modfile in glob.glob(os.path.join(picos, "*.py")):
             mod = import_file(modfile)
-            self.apps.append(Pico8App(mod.CART_FILE, mod.ICON_FILE))
-        self.apps.append(Pico8SploreApp())
+            self.apps.append(Pico8App(os.path.join(picos, mod.CART), os.path.join(picos, mod.ICON)))
+
 
         cur = []
         self.grid = [cur]  # list of lists

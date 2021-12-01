@@ -39,7 +39,8 @@ class State:
         self.p = [None, self.p1, self.p2]
 
     def draw_board(self):
-        for
+        pass
+        #for
 
     def draw(self):
         self.draw_board()
