@@ -136,6 +136,14 @@ class DisplaySDL(DisplayBaseSDL):
 class DisplaySDL_Render(DisplayBaseSDL):
     def __init__(self, show_fps=False):
         super().__init__(show_fps)
+
+        count = SDL_GetNumRenderDrivers()
+        for i in range(count):
+            inf = SDL_RendererInfo()
+            SDL_GetRenderDriverInfo(0, inf)
+            print("render driver", i, inf.name)
+
+
         SDL_SetHint(b"SDL_RENDER_SCALE_QUALITY", b"nearest");
         self.rend = SDL_CreateRenderer(self.window, -1, 0) #SDL_RENDERER_ACCELERATED) SDL_RENDERER_PRESENTVSYNC
         print("renderer:", SDL_GetError())
@@ -144,7 +152,7 @@ class DisplaySDL_Render(DisplayBaseSDL):
         self.calc_center()
         print("sdlr:", self.rend, self.tex, self.rect.w, self.rect.h)
         check(SDL_RenderClear(self.rend))
-        print("ok?")
+
 
     def resized(self, w, h):
         super().resized(w, h)
@@ -171,6 +179,7 @@ class DisplaySDL_Render(DisplayBaseSDL):
         check(SDL_RenderClear(self.rend))
         check(SDL_UpdateTexture(self.tex, None, self.pixels.get_raw_ptr(), DISP_WIDTH*4))
         check(SDL_RenderCopy(self.rend, self.tex, None, self.rect))
+        #check(SDL_RenderCopyEx(self.rend, self.tex, None, self.rect, 90, None, False))
 
         SDL_RenderPresent(self.rend)
         self.fps.inc()
@@ -343,7 +352,7 @@ class KeyboardJoyAdapter:
 def parse_cmdline():
     parser = argparse.ArgumentParser()
     parser.add_argument("--no-show-fps", dest="show_fps", action="store_false", help="Show FPS")
-    parser.add_argument("--disp", action="store", type=str, default="sdl", choices=['sdl', 'sdlr', 'null', 'matrix'])
+    parser.add_argument("--disp", action="store", type=str, default="sdlr", choices=['sdl', 'sdlr', 'null', 'matrix'])
     parser.set_defaults(show_fps=True)
     opt = parser.parse_known_args()[0]
     return opt
@@ -376,6 +385,7 @@ class InfraSDL:
                 self.display = disp_rgbmatrix.DisplayMatrix(self.opt.show_fps)
             else:
                 raise Exception("Unknown display kind " + self.opt.disp)
+            print("display:", type(self.display))
             self.draw = ShapeDraw(self.display)
             self.vdraw = VectorDraw(self.display) if with_vector else None
         return self.display
