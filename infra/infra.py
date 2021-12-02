@@ -129,6 +129,8 @@ class DisplayBaseSDL(BaseDisplay):
         self.scr_height = h.value
         print("Created window", w.value, h.value)
 
+        SDL_ShowCursor(SDL_DISABLE)
+
     def resized(self, w, h):
         self.scr_width = w
         self.scr_height = h
