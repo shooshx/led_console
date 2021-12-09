@@ -48,3 +48,20 @@ Gamemaster Audio - Retro 8Bit Sounds
 
 opencl:
 https://qengineering.eu/install-opencl-on-raspberry-pi-3.html
+
+pico commands
+    keyconfig
+
+wifi:
+    sudo raspi-config
+    sudo ip link set wlan0 up
+    sudo ip link set wlan0 down
+    iwconfig
+    sudo iwlist wlan0 scan
+    sudo nano /etc/wpa_supplicant/wpa_supplicant.conf
+
+retro-pie startup
+    /etc/profile.d/10-retropie.sh
+    /opt/retropie/configs/all/autostart.sh
+    emulationstation
+
