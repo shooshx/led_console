@@ -228,6 +228,38 @@ class BaseHandler:
     def on_joy_event(self, eventObj):
         return None
 
+class Anim:
+    def __init__(self):
+        self.fnum = 0
+        self.inf = None
+        self.ctx = None
+        self.remove = False
+    def do_step(self):
+        ret = self.step(self.fnum)
+        self.fnum += 1
+        return ret
+
+class BaseState(BaseHandler):
+    def __init__(self, inf):
+        self.disp = inf.get_display()
+        self.joys = inf.get_joystick_state()
+        self.inf = inf
+        self.anims = []
+
+    def add_anim(self, anim):
+        anim.inf = self.inf
+        anim.ctx = self.inf.vdraw.ctx
+        self.anims.append(anim)
+
+    def run_anims(self):
+        remove_any = False
+        for a in self.anims:
+            a.remove = not a.do_step()
+            remove_any |= a.remove
+        if remove_any:
+            self.anims = [a for a in self.anims if not a.remove]
+
+
 JOY_UP = 1
 JOY_DOWN = 2
 JOY_LEFT = 3
@@ -593,7 +625,7 @@ class InfraSDL:
         #print("~~~", passed, wait)
         if wait > 0:
             time.sleep(wait)
-        self.last_events_tick = ticks_now + wait
+        self.last_events_tick = ticks_now + max(wait, 0)
         if self.display is not None:
             self.display.fps.rec_wait(wait)
 
@@ -872,6 +904,20 @@ class VectorDraw:
         self.set_color(color)
         self.ctx.arc(x, y, r, 0, 2*math.pi)
         self.ctx.fill()
+
+def star_path(ctx, x, y, r1, r2, np):
+    dnp = math.pi / np
+
+    ctx.move_to(x, y + r1)
+    ang2 = dnp
+    ctx.line_to(x + r2 * math.sin(ang2), y + r2 * math.cos(ang2))
+
+    for i in range(1, np):
+        di = i * 2
+        ang1 = di * dnp
+        ctx.line_to(x + r1 * math.sin(ang1), y + r1 * math.cos(ang1))
+        ang2 = (di + 1) * dnp
+        ctx.line_to(x + r2 * math.sin(ang2), y + r2 * math.cos(ang2))
 
 
 
