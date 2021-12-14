@@ -224,7 +224,7 @@ class Player:
         self.player = player  # 1 or 2
         self.paddle_y = PADDLE_HEIGHT if player == 2 else (self.state.disp.height - 1 - PADDLE_HEIGHT)
         self.plid = plid
-        if plid == PLID_AI:
+        if plid == infra.PLID_AI:
             self.ai = AI(self, state)
         else:
             self.ai = None
@@ -273,8 +273,6 @@ class Resources:
         self.hits = infra.AudioDualGroup(os.path.join(this_path, f"audio/hit/_hitIII_PPP.ogg"), 5)
         self.crashes = infra.AudioDualGroup(os.path.join(this_path, f"audio/crash/_crashIII_PPP.ogg"), 7)
 
-PLID_AI = 0
-PLID_GIRL = 1
 
 class PlayersMenu:
     def __init__(self, state):
@@ -311,7 +309,7 @@ class State(infra.BaseState):
     def __init__(self, inf):
         super().__init__(inf)
         self.res = Resources()
-        self.start_new_game(PLID_AI, PLID_AI)  # let it play in the back of the menu
+        self.start_new_game(infra.PLID_AI, infra.PLID_AI)  # let it play in the back of the menu
         self.show_players_menu()
 
     def show_players_menu(self):
@@ -346,7 +344,7 @@ class State(infra.BaseState):
 
     def state_on_start(self):
         # waiting for any input at first, unless both are AI
-        self.ball_paused = not (self.p1.plid == PLID_AI and self.p2.plid == PLID_AI)
+        self.ball_paused = not (self.p1.plid == infra.PLID_AI and self.p2.plid == infra.PLID_AI)
         self.ball_visible = True
         self.input_enabled = True  # for both user and AI
         self.user_input_enabled = True

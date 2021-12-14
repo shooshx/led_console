@@ -1203,3 +1203,5 @@ class MixTracker:
 
 
 
+PLID_AI = 0
+PLID_GIRL = 1

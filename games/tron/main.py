@@ -58,13 +58,95 @@ class CrashAnim(infra.Anim):
 
         return True
 
+# absolute directions relative to player 1
+DIR_UP = 0
+DIR_DOWN = 1
+DIR_LEFT = 2
+DIR_RIGHT = 3
+
+def rel_right_of(d):
+    if d == DIR_UP:
+        return DIR_RIGHT
+    if d == DIR_DOWN:
+        return DIR_LEFT
+    if d == DIR_LEFT:
+        return DIR_UP
+    if d == DIR_RIGHT:
+        return DIR_DOWN
+
+def rel_left_of(d):
+    if d == DIR_UP:
+        return DIR_LEFT
+    if d == DIR_DOWN:
+        return DIR_RIGHT
+    if d == DIR_LEFT:
+        return DIR_DOWN
+    if d == DIR_RIGHT:
+        return DIR_UP
+
+def v_for_d(d, s):
+    if d == DIR_UP:
+        return 0, -s
+    elif d == DIR_DOWN:
+        return 0, s
+    elif d == DIR_LEFT:
+        return -s, 0
+    elif d == DIR_RIGHT:
+        return s, 0
+
+class AI:
+    def __init__(self, player, state):
+        self.player = player
+        self.state = state
+
+    def is_wall(self, ix, iy):
+        ex = self.state.board.get(ix, iy)
+        return ex & TYPE_MASK == TYPE_REAL
+
+    def step(self):
+        ix, iy = int(self.player.pos.x), int(self.player.pos.y)
+        next_pos = self.player.pos.copy()
+        self.player.advance_pos(next_pos, self.player.v)
+        nix, niy = int(next_pos.x), int(next_pos.y)
+        if ix == nix and iy == niy:  # not going to advance
+            return
+
+        # front is blocked?
+        if not self.is_wall(nix, niy):
+            return   # do nothing until I have to (TBD)
+
+        # left is blocked?
+        d_rel_left = rel_left_of(self.player.cur_dir)
+        v_left = v_for_d(d_rel_left, 1)
+        lix, liy = ix + v_left[0], iy + v_left[1]
+        left_blocked = self.is_wall(lix, liy)
+
+        d_rel_right = rel_right_of(self.player.cur_dir)
+        v_right = v_for_d(d_rel_right, 1)
+        rix, riy = ix + v_right[0], iy + v_right[1]
+        right_blocked = self.is_wall(rix, riy)
+
+        if left_blocked and not right_blocked:
+            self.player.set_v(d_rel_right)
+        elif not left_blocked and right_blocked:
+            self.player.set_v(d_rel_left)
+        elif not left_blocked and not right_blocked:
+            sel_dir = d_rel_right if (random.random() > 0.5) else d_rel_left  # TBD better againt counter
+            self.player.set_v(sel_dir)
+
+        # if both are blocked nothing to do
+
+
+
+
 class Player:
-    def __init__(self, state, disp, player):
+    def __init__(self, state, disp, player, plid):
         self.state = state
         self.player = player  # 1 or 2
         self.pos = infra.Vec2f(int(disp.width/2), (disp.height*(0.9 if player == 1 else 0.1)))
         self.base_speed = 0.25
         self.v = infra.Vec2f(0, self.base_speed * (-1 if player == 1 else 1))
+        self.cur_dir = DIR_UP if player == 1 else DIR_DOWN
         self.color = infra.COLOR_BLUE if player == 1 else infra.COLOR_RED
         self.side_color = infra.color_mult(self.color, 0.5)
 
@@ -75,11 +157,18 @@ class Player:
         self.dist_in_v = 0  # distance traversed since last distance change - for avoiding sub-pixel turn arounds
         self.step_count = 0
 
-    def set_v(self, vx, vy):
+        if plid == infra.PLID_AI:
+            self.ai = AI(self, state)
+        else:
+            self.ai = None
+
+    def set_v(self, dr):
         if self.dist_in_v < 1:
-            return
+            return  # prevent very short Z turns
+        vx, vy = v_for_d(dr, self.base_speed)
         self.v.x = vx
         self.v.y = vy
+        self.cur_dir = dr
         self.dist_in_v = 0
 
     # don't want sides to erase real line
@@ -166,9 +255,16 @@ class Player:
         ctx.set_line_width(1.0)
         ctx.stroke()
 
+    def advance_pos(self, pos, v):
+        pos.x = (pos.x + v.x) % self.state.bwidth
+        pos.y = (pos.y + v.y) % self.state.bheight
+
+
     def step(self):
-        self.pos.x = (self.pos.x + self.v.x) % self.state.bwidth
-        self.pos.y = (self.pos.y + self.v.y) % self.state.bheight
+        if self.ai is not None:
+            self.ai.step()
+
+        self.advance_pos(self.pos, self.v)
 
         self.dist_in_v += self.base_speed
 
@@ -201,8 +297,8 @@ class State(infra.BaseState):
         # used for collision detection, side pixels
         # 0x11,0x01, 12,02 : players (center, side)
         self.board = infra_c.IntMatrix(self.disp.width, self.disp.height)
-        self.p1 = Player(self, self.disp, 1)
-        self.p2 = Player(self, self.disp, 2)
+        self.p1 = Player(self, self.disp, 1, infra.PLID_GIRL)
+        self.p2 = Player(self, self.disp, 2, infra.PLID_AI)
         self.p = [None, self.p1, self.p2]
 
         self.bwidth = self.disp.width
@@ -245,16 +341,16 @@ class State(infra.BaseState):
         p = self.p[eventObj.player]
         if eventObj.event == infra.JOY_UP:
             if p.v.y == 0:
-                p.set_v(0, -p.base_speed)
+                p.set_v(DIR_UP)
         elif eventObj.event == infra.JOY_DOWN:
             if p.v.y == 0:
-                p.set_v(0, p.base_speed)
+                p.set_v(DIR_DOWN)
         elif eventObj.event == infra.JOY_LEFT:
             if p.v.x == 0:
-                p.set_v(-p.base_speed, 0)
+                p.set_v(DIR_LEFT)
         elif eventObj.event == infra.JOY_RIGHT:
             if p.v.x == 0:
-                p.set_v(p.base_speed, 0)
+                p.set_v(DIR_RIGHT)
 
     def on_key_down_event(self, eventObj):
         if eventObj.sym == ord('o'):
