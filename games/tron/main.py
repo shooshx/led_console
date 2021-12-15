@@ -108,12 +108,16 @@ class AI:
         next_pos = self.player.pos.copy()
         self.player.advance_pos(next_pos, self.player.v)
         nix, niy = int(next_pos.x), int(next_pos.y)
-        if ix == nix and iy == niy:  # not going to advance
+        # chance for a random turn once in 5 seconds
+        do_rand_turn = (int(random.random() * 60 * 5) == 1)
+
+        if not do_rand_turn and ix == nix and iy == niy:  # not going to advance
             return
 
         # front is blocked?
         if not self.is_wall(nix, niy):
-            return   # do nothing until I have to (TBD)
+            if not do_rand_turn:
+                return
 
         # left is blocked?
         d_rel_left = rel_left_of(self.player.cur_dir)
@@ -131,7 +135,18 @@ class AI:
         elif not left_blocked and right_blocked:
             self.player.set_v(d_rel_left)
         elif not left_blocked and not right_blocked:
-            sel_dir = d_rel_right if (random.random() > 0.5) else d_rel_left  # TBD better againt counter
+            # if we're hitting a perpendicular line, check it's progress direction and go to the opposite, useful heuristic
+            v_fwd = v_for_d(self.player.cur_dir, 1)
+            flix, fliy = ix + v_left[0] + v_fwd[0], iy + v_left[1] + v_fwd[1]
+            frix, friy = ix + v_right[0] + v_fwd[0], iy + v_right[1] + v_fwd[1]
+            flex = self.state.board.get(flix, fliy)
+            frex = self.state.board.get(frix, friy)
+
+            if flex & TYPE_MASK == TYPE_REAL and frex & TYPE_MASK == TYPE_REAL:
+                index_diff = ((flex & INDEX_MASK) >> 16) - ((frex & INDEX_MASK) >> 16)
+                sel_dir = d_rel_right if (index_diff > 0) else d_rel_left
+            else:
+                sel_dir = d_rel_right if (random.random() > 0.5) else d_rel_left
             self.player.set_v(sel_dir)
 
         # if both are blocked nothing to do
@@ -250,7 +265,7 @@ class Player:
             ctx.line_to(px-ARROW_WIDTH, py-ys*ARROW_LEN)
         ctx.close_path()
         self.state.inf.vdraw.set_color(self.color)
-        ctx.fill()
+        ctx.fill_preserve()
         self.state.inf.vdraw.set_color(self.side_color)
         ctx.set_line_width(1.0)
         ctx.stroke()
