@@ -14,8 +14,8 @@ TYPE_SIDE = 0x20
 TYPE_REAL = 0x10
 INDEX_MASK = 0xffff0000
 
-ARROW_LEN = 4
-ARROW_WIDTH = 3
+ARROW_LEN = 5
+ARROW_WIDTH = 2.5
 
 
 class CrashAnim(infra.Anim):
@@ -241,34 +241,42 @@ class Player:
 
             last_pos = pos
 
-    def draw_bike(self):
-        ctx = self.state.inf.vdraw.ctx
-        px, py = self.pos.x, self.pos.y
-        if self.v.y == 0:  # want the arrow centered in the direction of movement
-            py = int(py) + 0.5
-            xs = infra.sign(self.v.x)
-            px += xs * 1.5
-        else:
-            px = int(px) + 0.5
-            ys = infra.sign(self.v.y)
-            py += ys * 1.5
 
-        if self.v.y == 0:  # left, right
-            ctx.move_to(px, py)
-            ctx.line_to(px-xs*ARROW_LEN, py+ARROW_WIDTH)
-            ctx.line_to(px-xs-xs*ARROW_LEN, py)
-            ctx.line_to(px-xs*ARROW_LEN, py-ARROW_WIDTH)
-        else:  # up, down
-            ctx.move_to(px, py)
-            ctx.line_to(px+ARROW_WIDTH, py-ys*ARROW_LEN)
-            ctx.line_to(px, py-ys*(ARROW_LEN+1))
-            ctx.line_to(px-ARROW_WIDTH, py-ys*ARROW_LEN)
+    def draw_bike(self):
+        if len(self.tail) < 2:
+            return
+        ctx = self.state.inf.vdraw.ctx
+        px, py, _ = self.tail[-1]
+        bx, by, _ = self.tail[-(min(3, len(self.tail)))]
+
+        d = infra.Vec2f(px - bx, py - by)
+        if d.x > 10:  # over the edge
+            d.x -= 128
+        elif d.x < -10:
+            d.x += 128
+        if d.y > 10:
+            d.y -= 128
+        elif d.y < -10:
+            d.y += 128
+
+        d.normalize(1)
+        r = infra.Vec2f(d.y, -d.x)
+
+        px, py = px + 0.5 + d.x, py + 0.5 + d.y
+
+        lpx, lpy = px - d.x*ARROW_LEN + r.x*ARROW_WIDTH, py - d.y*ARROW_LEN + r.y*ARROW_WIDTH
+        rpx, rpy = px - d.x*ARROW_LEN - r.x*ARROW_WIDTH, py - d.y*ARROW_LEN - r.y*ARROW_WIDTH
+        ctx.move_to(px, py)
+        ctx.line_to(lpx, lpy)
+        ctx.line_to(rpx, rpy)
         ctx.close_path()
+
         self.state.inf.vdraw.set_color(self.color)
         ctx.fill_preserve()
         self.state.inf.vdraw.set_color(self.side_color)
         ctx.set_line_width(1.0)
         ctx.stroke()
+
 
     def advance_pos(self, pos, v):
         pos.x = (pos.x + v.x) % self.state.bwidth
