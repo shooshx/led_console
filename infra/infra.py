@@ -285,6 +285,7 @@ class JoystickInf:
                 ev = JOY_X_CENTER
                 self.x = 0
         else:
+            print("unknown axis", event.axis)
             ev = None
         return ev
 
@@ -523,6 +524,7 @@ class InfraSDL:
         event.player = ji.player
         handler.on_joy_event(event)
 
+    # return false for caller to end event loop
     def handle_events(self, handler):
         if self.got_quit:
             return False
@@ -541,6 +543,8 @@ class InfraSDL:
                 ji = self.joysticks.get(event.jid, g_null_joystick)
                 #print("joystick axis:", j.player, event.axis, event.value)
                 ev = ji.got_axis_event(event)
+                if ev is None:
+                    return True
                 bret = self.do_joy_event(event, ev, ji, handler)
                 if bret is not None:
                     return bret
