@@ -33,19 +33,8 @@ MAX_BALL_SLOPE = 3
 # vars
 g_now = 0
 
-class Anim:
-    def __init__(self):
-        self.fnum = 0
-        self.inf = None
-        self.ctx = None
-        self.remove = False
-    def do_step(self):
-        ret = self.step(self.fnum)
-        self.fnum += 1
-        return ret
 
-
-class AnimBallPaddle(Anim):
+class AnimBallPaddle(infra.Anim):
     MAX_RADIUS = 70
     def __init__(self, ball_pos, color):
         super().__init__()
@@ -67,22 +56,8 @@ class AnimBallPaddle(Anim):
         self.r += 2
         return self.r < self.MAX_RADIUS
 
-def star_path(ctx, x, y, r1, r2, np):
-    dnp = math.pi / np
 
-    ctx.move_to(x, y + r1)
-    ang2 = dnp
-    ctx.line_to(x + r2 * math.sin(ang2), y + r2 * math.cos(ang2))
-
-    for i in range(1, np):
-        di = i * 2
-        ang1 = di * dnp
-        ctx.line_to(x + r1 * math.sin(ang1), y + r1 * math.cos(ang1))
-        ang2 = (di + 1) * dnp
-        ctx.line_to(x + r2 * math.sin(ang2), y + r2 * math.cos(ang2))
-
-
-class AnimBallOut_Fail(Anim):
+class AnimBallOut_Fail(infra.Anim):
     def __init__(self, ball_pos, state):
         super().__init__()
         self.center = ball_pos
@@ -101,14 +76,14 @@ class AnimBallOut_Fail(Anim):
             self.grad.set_extend(cairo.Extend.REFLECT)
 
             self.inf.vdraw.ctx.set_source(self.grad)
-            star_path(self.ctx, self.center.x, self.center.y, self.r, r2, 20)
+            infra.star_path(self.ctx, self.center.x, self.center.y, self.r, r2, 20)
             self.inf.vdraw.ctx.fill()
             self.r += 7
             if self.r > 150:
                 self.phase = 2
         else:
             self.inf.vdraw.set_color_f(0xFFEC27, self.color_f)
-            star_path(self.ctx, self.center.x, self.center.y, self.r, r2, 20)
+            infra.star_path(self.ctx, self.center.x, self.center.y, self.r, r2, 20)
             self.inf.vdraw.ctx.fill()
 
             self.color_f -= 0.1
@@ -249,7 +224,7 @@ class Player:
         self.player = player  # 1 or 2
         self.paddle_y = PADDLE_HEIGHT if player == 2 else (self.state.disp.height - 1 - PADDLE_HEIGHT)
         self.plid = plid
-        if plid == PLID_AI:
+        if plid == infra.PLID_AI:
             self.ai = AI(self, state)
         else:
             self.ai = None
@@ -298,8 +273,6 @@ class Resources:
         self.hits = infra.AudioDualGroup(os.path.join(this_path, f"audio/hit/_hitIII_PPP.ogg"), 5)
         self.crashes = infra.AudioDualGroup(os.path.join(this_path, f"audio/crash/_crashIII_PPP.ogg"), 7)
 
-PLID_AI = 0
-PLID_GIRL = 1
 
 class PlayersMenu:
     def __init__(self, state):
@@ -332,13 +305,11 @@ class PlayersMenu:
 
 
 
-class State(infra.BaseHandler):
-    def __init__(self, inf, disp, joys):
-        self.disp = disp
-        self.joys = joys
-        self.inf = inf
+class State(infra.BaseState):
+    def __init__(self, inf):
+        super().__init__(inf)
         self.res = Resources()
-        self.start_new_game(PLID_AI, PLID_AI)  # let it play in the back of the menu
+        self.start_new_game(infra.PLID_AI, infra.PLID_AI)  # let it play in the back of the menu
         self.show_players_menu()
 
     def show_players_menu(self):
@@ -373,23 +344,11 @@ class State(infra.BaseHandler):
 
     def state_on_start(self):
         # waiting for any input at first, unless both are AI
-        self.ball_paused = not (self.p1.plid == PLID_AI and self.p2.plid == PLID_AI)
+        self.ball_paused = not (self.p1.plid == infra.PLID_AI and self.p2.plid == infra.PLID_AI)
         self.ball_visible = True
         self.input_enabled = True  # for both user and AI
         self.user_input_enabled = True
 
-    def add_anim(self, anim):
-        anim.inf = self.inf
-        anim.ctx = self.inf.vdraw.ctx
-        self.anims.append(anim)
-
-    def run_anims(self):
-        remove_any = False
-        for a in self.anims:
-            a.remove = not a.do_step()
-            remove_any |= a.remove
-        if remove_any:
-            self.anims = [a for a in self.anims if not a.remove]
 
     def add_bonus(self, bonus):
         bonus.inf = self.inf
@@ -582,12 +541,10 @@ def main(argv):
     global g_now
     g_now = time.time()
     inf = infra.infra_init()
-    disp = inf.get_display()
-    joys = inf.get_joystick_state()
 
-    state = State(inf, disp, joys)
+    state = State(inf)
 
-    disp.refresh()
+    state.disp.refresh()
 
     slow = False
     while True:
