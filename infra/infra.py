@@ -464,6 +464,7 @@ def parse_cmdline(args):
     parser = argparse.ArgumentParser()
     parser.add_argument("--no-show-fps", dest="show_fps", action="store_false", help="Show FPS")
     parser.add_argument("--disp", action="store", type=str, default="sdlr", choices=['sdl', 'sdlr', 'null', 'matrix'])
+    parser.add_argument("--rotate", action="store", type=int, default=0, help="Screen rotate (0,1,2,3)")
     parser.set_defaults(show_fps=True)
     opt = parser.parse_known_args(args)[0]
     return opt
@@ -496,7 +497,8 @@ class InfraSDL:
                 self.display = disp_rgbmatrix.DisplayMatrix(self.opt.show_fps)
             else:
                 raise Exception("Unknown display kind " + self.opt.disp)
-            print("display:", type(self.display))
+            print("display:", type(self.display), "rotate:", self.opt.rotate)
+            self.display.set_rotate(self.opt.rotate)
             self.draw = ShapeDraw(self.display)
             self.vdraw = VectorDraw(self.display)
         return self.display
