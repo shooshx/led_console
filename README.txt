@@ -65,3 +65,6 @@ retro-pie startup
     /opt/retropie/configs/all/autostart.sh
     emulationstation
 
+low power
+    vcgencmd get_throttled
+

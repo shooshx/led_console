@@ -281,6 +281,8 @@ JOY_ANY_ARROW = [JOY_UP, JOY_DOWN, JOY_LEFT, JOY_RIGHT]
 JOY_ANY_LETTER = [JOY_BTN_A, JOY_BTN_B, JOY_BTN_C, JOY_BTN_D]
 
 
+PL_1_JOY_MAP = { JOY_UP: JOY_DOWN, JOY_DOWN: JOY_UP, JOY_LEFT: JOY_RIGHT, JOY_RIGHT: JOY_LEFT }
+PL_2_JOY_MAP = {}
 
 class JoystickInf:
     def __init__(self, j, player, infra):
@@ -294,6 +296,7 @@ class JoystickInf:
         self.btn_C = False
         self.btn_D = False
         self.btn_Start = False
+        self.mapping = PL_1_JOY_MAP if self.player == PLAYER_1 else PL_2_JOY_MAP
 
     def got_axis_event(self, event):
         if event.axis == 0:
@@ -319,6 +322,8 @@ class JoystickInf:
         else:
             print("unknown axis", event.axis)
             ev = None
+        if ev in self.mapping:
+            ev = self.mapping[ev]
         return ev
 
     def got_axis_keydown(self, ev):
