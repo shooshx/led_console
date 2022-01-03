@@ -42,6 +42,7 @@ else:
     PICO8_EXE = os.path.join(this_path, r"..\pico8\pico-8\pico-8_0.2.3_windows\pico-8\pico8.exe")
 
 def start_pico8(args):
+    os.environ["LD_PRELOAD"] = "/home/pi/led_console/sdl_disp_inject/sdl_disp_inject.so"
     cmd = [PICO8_EXE] + args
     print(' '.join(cmd))
     subprocess.call(cmd)
