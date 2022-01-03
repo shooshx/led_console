@@ -1,4 +1,6 @@
 03000000790000000600000000000000,joystick,platform:Windows,y:b0,leftx:a1,lefty:a0~,
 
+03000000790000000600000010010000,DragonRise inc.   Generic   USB  Joystick,platform:Linux,a:b0,b:b1,x:b3,y:b2,back:b5,start:b4,leftx:a1~,lefty:a0,
 
 to C:\Users\shooshx\AppData\Roaming\pico-8
+~/.lexaloffle/pico-8/sdl_controllers.txt

@@ -1,4 +1,4 @@
-import array
+import array, random
 import PIL.Image
 
 from libc.string cimport memset
@@ -235,7 +235,7 @@ cdef float rgb_to_h(float r, float g, float b):
     return h
 
 # from Lib colorsys
-cdef (float, float, float) hsv_to_rgb(float h, float s, float v):
+cpdef (float, float, float) hsv_to_rgb(float h, float s, float v):
     cdef float f, p, q, t
     cdef int i
     if s == 0.0:
@@ -309,3 +309,9 @@ cdef class Color:
 
     cdef unsigned int as_uint_max(self):
         return min(self.r,255) | (min(self.g,255) << 8) | (min(self.b,255) << 16)
+
+
+cpdef unsigned int rand_color():
+    cdef float r,g,b
+    r,g,b = hsv_to_rgb(random.random(), 1, 1)
+    return int(r * 255) | (int(g * 255) << 8) | (int(b * 255) << 16) | 0xff000000

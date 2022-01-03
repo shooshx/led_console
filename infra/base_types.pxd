@@ -55,3 +55,5 @@ cdef class Color:
 
 
 cdef (float, float, float) hsv_to_rgb(float h, float s, float v)
+
+cpdef unsigned int rand_color()

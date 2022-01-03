@@ -20,11 +20,6 @@ cdef dict PATTERNS = {
     "glider": GLIDER_RD
 }
 
-cdef unsigned int rand_color():
-    cdef float r,g,b
-    r,g,b = hsv_to_rgb(random.random(), 1, 1)
-    return int(r * 255) | (int(g * 255) << 8) | (int(b * 255) << 16) | 0xff000000
-
 cdef int cell_alive(unsigned int c):
     #return c != 0
     # this produces better C code than with 0xff, and we only need 1 bit anyway

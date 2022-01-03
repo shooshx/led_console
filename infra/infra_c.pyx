@@ -188,5 +188,5 @@ def render_matrix(IntMatrix m, rend_ptr, int scr_width, int scr_height):
 
 include "base_types.pyx"
 
-IF UNAME_SYSNAME == "Linux":
-    include "rgbmatrix_core.pxi"
+# IF UNAME_SYSNAME == "Linux":
+#    include "rgbmatrix_core.pxi"
