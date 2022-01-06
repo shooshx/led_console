@@ -239,6 +239,36 @@ class Anim:
         self.fnum += 1
         return ret
 
+class PlayersMenu:
+    def __init__(self, state):
+        self.state = state
+        self.p_sel = [None, state.p[1].plid, state.p[2].plid]
+        self.sprites = [ self.state.res.menu_robot, self.state.res.menu_girl ]
+
+    def draw(self):
+        xmargin = 40
+        ymargin = 25
+        dw = self.state.disp.width
+        dh = self.state.disp.height
+        hdw = dw // 2
+        hdh = dh // 2
+        w = dw - xmargin*2
+        h = dh - ymargin*2
+
+        self.state.inf.draw.rect_a(xmargin + 1, ymargin + 1, w-1, h-1, 0xcc008751)
+        self.state.inf.draw.round_rect(xmargin, ymargin, w, h, 0xffffff)
+
+        self.sprites[self.p_sel[2]].blit_to_center(self.state.disp.pixels, hdw, hdh - 20)
+        self.sprites[self.p_sel[1]].blit_to_center(self.state.disp.pixels, hdw, hdh + 20)
+
+    def on_joy_event(self, eventObj):
+        if eventObj.event in JOY_ANY_ARROW:
+            self.p_sel[eventObj.player] = (self.p_sel[eventObj.player] + 1) % 2
+        if eventObj.event == JOY_BTN_A or eventObj.event == JOY_BTN_START:
+            self.state.hide_players_menu()
+            self.state.start_new_game(self.p_sel[1], self.p_sel[2])
+
+
 class BaseState(BaseHandler):
     def __init__(self, inf):
         self.disp = inf.get_display()
@@ -258,6 +288,30 @@ class BaseState(BaseHandler):
             remove_any |= a.remove
         if remove_any:
             self.anims = [a for a in self.anims if not a.remove]
+
+
+    def show_players_menu(self):
+        self.user_input_enabled = False
+        self.menu = PlayersMenu(self)
+
+    def hide_players_menu(self):
+        self.user_input_enabled = True
+        self.menu = None
+
+    # returns True if event is consumed
+    def on_joy_event(self, eventObj):
+        if self.menu is not None:
+            self.menu.on_joy_event(eventObj)
+            return True
+
+        if eventObj.event == JOY_BTN_START:
+            self.show_players_menu()
+        return False
+
+class ResourcesBase:
+    def __init__(self):
+        self.menu_girl = Sprite(os.path.join(imgs_path, "girl_user.png"))
+        self.menu_robot = Sprite(os.path.join(imgs_path, "robot_user.png"))
 
 
 JOY_UP = 1

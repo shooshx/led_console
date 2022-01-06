@@ -63,6 +63,7 @@ DIR_UP = 0
 DIR_DOWN = 1
 DIR_LEFT = 2
 DIR_RIGHT = 3
+BASE_SPEED = 0.3
 
 def rel_right_of(d):
     if d == DIR_UP:
@@ -155,27 +156,34 @@ class AI:
 
 
 class Player:
-    def __init__(self, state, disp, player, plid):
+    def __init__(self, state, player, plid):
         self.state = state
         self.player = player  # 1 or 2
-        self.pos = infra.Vec2f(int(disp.width/2), (disp.height*(0.9 if player == 1 else 0.1)))
-        self.base_speed = 0.25
-        self.v = infra.Vec2f(0, self.base_speed * (-1 if player == 1 else 1))
-        self.cur_dir = DIR_UP if player == 1 else DIR_DOWN
+        self.score = 0
+        self.base_speed = BASE_SPEED
         self.color = infra.COLOR_BLUE if player == 1 else infra.COLOR_RED
         self.side_color = infra.color_mult(self.color, 0.5)
+        self.plid = plid
 
-        self.tail = collections.deque()  # list of (x, y, step_index) ...
-        self.last_posi = infra.Vec2i(-1, -1)
-       # self.last_v = infra.Vec2f(0, 0)
-
-        self.dist_in_v = 0  # distance traversed since last distance change - for avoiding sub-pixel turn arounds
-        self.step_count = 0
+        self.reset_state()
 
         if plid == infra.PLID_AI:
             self.ai = AI(self, state)
         else:
             self.ai = None
+
+    def reset_state(self):
+        self.pos = infra.Vec2f(int(self.state.disp.width/2), (self.state.disp.height*(0.9 if self.player == 1 else 0.1)))
+        self.v = infra.Vec2f(0, self.base_speed * (-1 if self.player == 1 else 1))
+        self.cur_dir = DIR_UP if self.player == 1 else DIR_DOWN
+
+        self.tail = collections.deque()  # list of (x, y, step_index) ...
+        self.last_posi = infra.Vec2i(-1, -1)
+
+        self.dist_in_v = 0  # distance traversed since last distance change - for avoiding sub-pixel turn arounds
+        self.step_count = 0
+        self.alive = True
+
 
     def set_v(self, dr):
         if self.dist_in_v < 1:
@@ -310,24 +318,43 @@ class Player:
 
     def crash(self):
         self.v.x, self.v.y = 0, 0
+        self.alive = False
+        self.state.crashed(self.player)
         self.state.add_anim(CrashAnim(self.state, self.pos.copy(), self))
 
+
+class Resources(infra.ResourcesBase):
+    def __init__(self):
+        super().__init__()
 
 
 class State(infra.BaseState):
     def __init__(self, inf):
         super().__init__(inf)
-        # used for collision detection, side pixels
-        # 0x11,0x01, 12,02 : players (center, side)
-        self.board = infra_c.IntMatrix(self.disp.width, self.disp.height)
-        self.p1 = Player(self, self.disp, 1, infra.PLID_GIRL)
-        self.p2 = Player(self, self.disp, 2, infra.PLID_AI)
-        self.p = [None, self.p1, self.p2]
-
+        self.res = Resources()
         self.bwidth = self.disp.width
         self.bheight = self.disp.height
         self.slow = False
+        self.start_new_game(infra.PLID_AI, infra.PLID_AI)
+        self.show_players_menu()
 
+    def start_new_game(self, p1_id, p2_id):
+        # used for collision detection, side pixels
+        # 0x11,0x01, 12,02 : players (center, side)
+        self.reset_board()
+        self.p1 = Player(self, 1, p1_id)
+        self.p2 = Player(self, 2, p2_id)
+        self.p = [None, self.p1, self.p2]
+
+    def reset_board(self):
+        self.board = infra_c.IntMatrix(self.disp.width, self.disp.height)
+        self.game_ongoing = True
+        self.had_crash = False  # game is only over after both players has chance to crash
+
+    def reset_state(self):
+        self.reset_board()
+        self.p1.reset_state()
+        self.p2.reset_state()
 
     def draw_board(self):
         self.board.fill(0)
@@ -348,10 +375,18 @@ class State(infra.BaseState):
 
         self.run_anims()
 
+    def draw_scores(self):
+        self.inf.put_text(str(self.p1.score), 1, self.disp.width - 6)
+        self.inf.put_text(str(self.p2.score), 1, 1, upside_down=True)
+
 
     def draw(self):
         self.disp.pixels.fill(0)
         self.draw_board()
+        self.draw_scores()
+
+        if self.menu is not None:
+            self.menu.draw()
         self.disp.refresh()
 
     def step(self):
@@ -359,9 +394,26 @@ class State(infra.BaseState):
             time.sleep(0.5)
         self.p1.step()
         self.p2.step()
+        if self.had_crash:
+            self.game_ongoing = False
+
+    def crashed(self, player_lost):
+        if not self.game_ongoing:
+            return  # only one can lose
+        other_player = 1 if player_lost == 2 else 2
+        self.p[other_player].score += 1
 
     def on_joy_event(self, eventObj):
+        if super().on_joy_event(eventObj):
+            return
+        if not self.game_ongoing:
+            if eventObj.event in infra.JOY_ANY_LETTER:
+                self.reset_state()
+                return
+
         p = self.p[eventObj.player]
+        if not p.alive:
+            return
         if eventObj.event == infra.JOY_UP:
             if p.v.y == 0:
                 p.set_v(DIR_UP)

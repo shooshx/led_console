@@ -262,46 +262,15 @@ class Ball:
 
 
 
-class Resources:
+class Resources(infra.ResourcesBase):
     def __init__(self):
+        super().__init__()
         self.balls_bonus_anim = infra.AnimSprite(os.path.join(this_path, "balls_anim3/all.png"))
-        self.menu_girl = infra.Sprite(os.path.join(infra.imgs_path, "girl_user.png"))
-        self.menu_robot = infra.Sprite(os.path.join(infra.imgs_path, "robot_user.png"))
 
         self.bonus_sound = infra.by_player_audio(os.path.join(this_path, "audio/bonus_collect_PPP.ogg"))
         self.pops = infra.AudioDualGroup(os.path.join(this_path, f"audio/pop/_popIII_PPP.ogg"), 12)
         self.hits = infra.AudioDualGroup(os.path.join(this_path, f"audio/hit/_hitIII_PPP.ogg"), 5)
         self.crashes = infra.AudioDualGroup(os.path.join(this_path, f"audio/crash/_crashIII_PPP.ogg"), 7)
-
-
-class PlayersMenu:
-    def __init__(self, state):
-        self.state = state
-        self.p_sel = [None, state.p[1].plid, state.p[2].plid]
-        self.sprites = [ self.state.res.menu_robot, self.state.res.menu_girl ]
-
-    def draw(self):
-        xmargin = 40
-        ymargin = 25
-        dw = self.state.disp.width
-        dh = self.state.disp.height
-        hdw = dw // 2
-        hdh = dh // 2
-        w = dw - xmargin*2
-        h = dh - ymargin*2
-
-        self.state.inf.draw.rect_a(xmargin + 1, ymargin + 1, w-1, h-1, 0xcc008751)
-        self.state.inf.draw.round_rect(xmargin, ymargin, w, h, 0xffffff)
-
-        self.sprites[self.p_sel[2]].blit_to_center(self.state.disp.pixels, hdw, hdh - 20)
-        self.sprites[self.p_sel[1]].blit_to_center(self.state.disp.pixels, hdw, hdh + 20)
-
-    def on_joy_event(self, eventObj):
-        if eventObj.event in infra.JOY_ANY_ARROW:
-            self.p_sel[eventObj.player] = (self.p_sel[eventObj.player] + 1) % 2
-        if eventObj.event == infra.JOY_BTN_A or eventObj.event == infra.JOY_BTN_START:
-            self.state.hide_players_menu()
-            self.state.start_new_game(self.p_sel[1], self.p_sel[2])
 
 
 
@@ -312,21 +281,7 @@ class State(infra.BaseState):
         self.start_new_game(infra.PLID_AI, infra.PLID_AI)  # let it play in the back of the menu
         self.show_players_menu()
 
-    def show_players_menu(self):
-        self.user_input_enabled = False
-        self.menu = PlayersMenu(self)
 
-    def hide_players_menu(self):
-        self.user_input_enabled = True
-        self.menu = None
-
-    def on_joy_event(self, eventObj):
-        if self.menu is not None:
-            self.menu.on_joy_event(eventObj)
-            return
-
-        if eventObj.event == infra.JOY_BTN_START:
-            self.show_players_menu()
 
     def start_new_game(self, p1_id, p2_id):
         print("new game:", p1_id, p2_id)
