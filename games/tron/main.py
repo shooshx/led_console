@@ -299,8 +299,8 @@ class Player:
 
         self.dist_in_v += self.base_speed
 
-        ix = int(self.pos.x)
-        iy = int(self.pos.y)
+        ix = int(self.pos.x) % 128
+        iy = int(self.pos.y) % 128
 
         if ix == self.last_posi.x and iy == self.last_posi.y:
             return
@@ -402,6 +402,7 @@ class State(infra.BaseState):
             return  # only one can lose
         other_player = 1 if player_lost == 2 else 2
         self.p[other_player].score += 1
+        self.had_crash = True
 
     def on_joy_event(self, eventObj):
         if super().on_joy_event(eventObj):

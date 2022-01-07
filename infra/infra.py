@@ -303,14 +303,14 @@ class BaseState(BaseHandler):
     # returns True if event is consumed
     def on_joy_event(self, eventObj):
         if not self.enable_players_menu:
-            return
+            return None
         if self.menu is not None:
             self.menu.on_joy_event(eventObj)
             return True
 
         if eventObj.event == JOY_BTN_START:
             self.show_players_menu()
-        return False
+        return None
 
 class ResourcesBase:
     def __init__(self):
