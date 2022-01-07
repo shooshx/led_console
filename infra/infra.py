@@ -275,6 +275,7 @@ class BaseState(BaseHandler):
         self.joys = inf.get_joystick_state()
         self.inf = inf
         self.anims = []
+        self.menu = None
 
     def add_anim(self, anim):
         anim.inf = self.inf
