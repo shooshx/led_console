@@ -75,6 +75,7 @@ BTN_SEL_COLOR = 0xdddddd
 
 class State(infra.BaseHandler):
     def __init__(self, inf, disp):
+        self.enable_players_menu = False
         self.disp = disp
         self.joys = inf.get_joystick_state()
         self.inf = inf

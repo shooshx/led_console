@@ -63,7 +63,7 @@ DIR_UP = 0
 DIR_DOWN = 1
 DIR_LEFT = 2
 DIR_RIGHT = 3
-BASE_SPEED = 0.3
+BASE_SPEED = 0.4
 
 def rel_right_of(d):
     if d == DIR_UP:

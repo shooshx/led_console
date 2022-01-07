@@ -100,6 +100,7 @@ ALL_BRIGHT = ColorRange(0,1, 1)
 class State(infra.BaseState):
     def __init__(self, inf):
         super().__init__(inf)
+        self.enable_players_menu = False
         self.shapes = collections.deque()
         self.sel_shapes = [Square]
         self.sel_colors = [ALL_BRIGHT]

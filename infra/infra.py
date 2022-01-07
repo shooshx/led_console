@@ -276,6 +276,7 @@ class BaseState(BaseHandler):
         self.inf = inf
         self.anims = []
         self.menu = None
+        self.enable_players_menu = True
 
     def add_anim(self, anim):
         anim.inf = self.inf
@@ -301,6 +302,8 @@ class BaseState(BaseHandler):
 
     # returns True if event is consumed
     def on_joy_event(self, eventObj):
+        if not self.enable_players_menu:
+            return
         if self.menu is not None:
             self.menu.on_joy_event(eventObj)
             return True
