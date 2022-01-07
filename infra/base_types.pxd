@@ -54,6 +54,6 @@ cdef class Color:
     cdef unsigned int as_uint_max(self)
 
 
-cdef (float, float, float) hsv_to_rgb(float h, float s, float v)
+cpdef (float, float, float) hsv_to_rgb(float h, float s, float v)
 
 cpdef unsigned int rand_color()
